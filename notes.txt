@@ -1,0 +1,38 @@
+// =================
+// FILE STRUCTURE
+// =================
+
+/*
+src/
+├── App.tsx
+├── main.tsx
+├── components/
+│   ├── Layout.tsx              # Main layout with nav/header
+│   ├── Navigation.tsx          # Nav bar component
+│   ├── AuthButton.tsx          # Login/logout button (placeholder for now)
+│   └── calculator/             # Calculator-specific components
+│       ├── ProductInput.tsx
+│       ├── RecipeSelector.tsx
+│       ├── ResultsDisplay.tsx
+│       └── MachineBreakdown.tsx
+├── pages/
+│   ├── Home.tsx                # Landing page: calculator + featured blueprints
+│   ├── Calculator.tsx          # Full calculator page (if needed separate)
+│   ├── Factories.tsx           # List of saved factory plans
+│   ├── FactoryDetail.tsx       # View a specific factory plan
+│   ├── Blueprints.tsx          # Browse community blueprints
+│   ├── BlueprintDetail.tsx     # View a specific blueprint
+│   └── Profile.tsx             # User profile page
+├── hooks/
+│   ├── useRecipeData.ts        # Hook to access recipe JSON
+│   └── useCalculator.ts        # Calculator logic hook
+├── utils/
+│   ├── calculator.ts           # Core calculation functions
+│   └── recipeHelpers.ts        # Recipe data utilities
+├── data/
+│   └── recipes.json            # Your Satisfactory recipe data
+├── types/
+│   └── index.ts                # TypeScript interfaces
+└── styles/
+    └── index.css               # Global styles
+*/
