@@ -143,12 +143,18 @@ function extractRawMaterials(
 ): string[] {
   const rawMaterials = new Set<string>();
 
-  // Find all items that are used as ingredients but have no recipe
+  // Find all items that are used as ingredients
   Object.values(recipePath).forEach((recipe) => {
     recipe.ingredients.forEach((ingredient) => {
-      const hasRecipe = recipeIndex[ingredient.item]?.length > 0;
-      if (!hasRecipe) {
-        rawMaterials.add(ingredient.item);
+      const itemClass = ingredient.item;
+
+      // It's a raw material if:
+      // 1. It has no recipe, OR
+      // 2. It's in our BASE_RESOURCES list (treated as raw to avoid circular deps)
+      const hasRecipe = recipeIndex[itemClass]?.length > 0;
+
+      if (!hasRecipe || isBaseResource(itemClass)) {
+        rawMaterials.add(itemClass);
       }
     });
   });

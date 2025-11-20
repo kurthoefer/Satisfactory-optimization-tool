@@ -30,7 +30,7 @@ src/
 │   ├── calculator.ts           # Core calculation functions
 │   └── recipeHelpers.ts        # Recipe data utilities
 ├── data/
-│   └── recipes.json            # Your Satisfactory recipe data
+│   └── recipes.json            # Satisfactory recipe data
 ├── types/
 │   └── index.ts                # TypeScript interfaces
 └── styles/

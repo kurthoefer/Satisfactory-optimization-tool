@@ -1,6 +1,4 @@
-// import { getAllProductionCombinations } from '../utils/recipeCombinations';
-
-import ProductionCalculator from '../components/calculator/CalculatorDemo';
+import ProductionCalculator from '../components/calculator/ProductionCalculator';
 import { useRecipeData } from '../hooks/useRecipeData';
 
 export default function Home() {
@@ -24,8 +22,16 @@ export default function Home() {
   /***********************/
 
   return (
-    <div>
-      <h1>Satisfactory Factory Planner</h1>
+    <div className='p-8'>
+      <div className='text-center mb-8'>
+        <h1 className='text-4xl mb-4 text-orange-500'>
+          Satisfactory Factory Planner
+        </h1>
+        <p className='text-gray-400'>
+          Plan your production lines and optimize resource usage
+        </p>
+      </div>
+
       <ProductionCalculator
         recipeIndex={recipeIndex}
         recipes={recipes}
@@ -33,32 +39,6 @@ export default function Home() {
     </div>
   );
 }
-/******************************
- ** version with some flavor: **
- ******************************/
-// return (
-
-// <div className='home-page'>
-//   <section className='hero-section'>
-//     <h1>Satisfactory Factory Planner</h1>
-//     <p>Plan your production lines and optimize resource usage</p>
-//   </section>
-
-//   <section className='calculator-section'>
-//     <ProductionCalculator
-//       recipeIndex={recipeIndex}
-//       recipes={recipes}
-//     />
-//   </section>
-
-//   {/* Featured blueprints section for later */}
-//   {/* <section className="featured-blueprints">
-//     <h2>Featured Blueprints</h2>
-//     <p>Coming soon...</p>
-//   </section> */}
-// </div>
-//   );
-// }
 
 /**************************
  ** DEBUG SUBSTITUTE PAGE **

@@ -1,8 +1,5 @@
-// src/components/calculator/ProductionCalculator.tsx
 import { useState, useMemo } from 'react';
-// import { ProcessedRecipe, RecipeIndex } from '../../types';
-// import { getAllProductionCombinations, ProductionCombination } from '../../utils/recipeCombinations';
-import type { ProcessedRecipe, RecipeIndex } from '../../types';
+import type { RecipeIndex, ProcessedRecipe } from '../../types';
 import {
   getAllProductionCombinations,
   type ProductionCombination,
@@ -21,17 +18,6 @@ export default function ProductionCalculator({
   const [selectedCombination, setSelectedCombination] =
     useState<ProductionCombination | null>(null);
 
-  /***********
-   * DEBUG ***
-   **********/
-  // console.log('ProductionCalculatorProps');
-  // console.log('recipeIndex:', recipeIndex);
-  // const bauxiteRecipes = recipeIndex['Desc_OreBauxite_C'];
-  // console.log('Bauxite recipes:', bauxiteRecipes);
-  // const ironOreRecipes = recipeIndex['Desc_OreIron_C'];
-  // console.log('Iron ore recipes:', ironOreRecipes);
-  // console.log('recipes:', recipes);
-
   // Get list of all producible products for dropdown
   const productList = useMemo(() => {
     const products = new Map<string, string>();
@@ -41,8 +27,7 @@ export default function ProductionCalculator({
         if (!products.has(product.item)) {
           products.set(
             product.item,
-            recipe.name
-            // recipe.name.split(' ').slice(0, -1).join(' ') || recipe.name
+            recipe.name.split(' ').slice(0, -1).join(' ') || recipe.name
           );
         }
       });
@@ -59,21 +44,64 @@ export default function ProductionCalculator({
     return getAllProductionCombinations(selectedProduct, recipeIndex);
   }, [selectedProduct, recipeIndex]);
 
+  // Group combinations by raw materials
+  const groupedCombinations = useMemo(() => {
+    const groups = new Map<string, ProductionCombination[]>();
+
+    combinations.forEach((combo) => {
+      // Create a unique key from sorted raw materials
+      const rawMaterialsKey = [...combo.rawMaterials].sort().join('|');
+
+      if (!groups.has(rawMaterialsKey)) {
+        groups.set(rawMaterialsKey, []);
+      }
+      groups.get(rawMaterialsKey)!.push(combo);
+    });
+
+    return Array.from(groups.entries()).map(([key, combos]) => ({
+      rawMaterials: combos[0].rawMaterials,
+      combinations: combos,
+    }));
+  }, [combinations]);
+
   const handleProductSelect = (productClassName: string) => {
     setSelectedProduct(productClassName);
     setSelectedCombination(null);
-    console.log('product selected!');
-    console.log('combination selected!');
   };
 
   const handleCombinationSelect = (combo: ProductionCombination) => {
     setSelectedCombination(combo);
-    console.log('combination selected!');
   };
 
   return (
     <div className='production-calculator'>
-      {/* Step 1: Product Selection */}
+      {/* Step 1: Product Selection /*
+.production-tree {
+  background: #1a1a1a;
+  padding: 1.5rem;
+  border-radius: 4px;
+  border: 1px solid #444;
+  overflow-x: auto;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: #ddd;
+  margin-bottom: 2rem;
+}
+
+.production-tree::-webkit-scrollbar {
+  height: 8px;
+}
+
+.production-tree::-webkit-scrollbar-track {
+  background: #0a0a0a;
+}
+
+.production-tree::-webkit-scrollbar-thumb {
+  background: #ff6b35;
+  border-radius: 4px;
+}
+*/}
       <section className='product-selection'>
         <h2>What do you want to produce?</h2>
         <select
@@ -93,32 +121,59 @@ export default function ProductionCalculator({
         </select>
       </section>
 
-      {/* Step 2: Show Recipe Combinations */}
-      {selectedProduct && combinations.length > 0 && (
-        <section className='combinations-section'>
-          <h2>Recipe Combinations ({combinations.length} options)</h2>
-          <p className='combinations-hint'>
-            Select a production path to see details
-          </p>
+      {/* Step 2: Show Recipe Combinations grouped by raw materials */}
+      {selectedProduct && groupedCombinations.length > 0 && (
+        <section>
+          <h2 className='text-2xl mb-4'>
+            Recipe Combinations ({combinations.length} total)
+          </h2>
 
-          <div className='combinations-grid'>
-            {combinations.map((combo, index) => (
-              <CombinationCard
-                key={combo.id}
-                combination={combo}
-                index={index}
-                isSelected={selectedCombination?.id === combo.id}
-                onSelect={() => handleCombinationSelect(combo)}
-              />
-            ))}
-          </div>
+          {groupedCombinations.map((group, groupIndex) => (
+            <div
+              key={group.rawMaterials.join('|')}
+              className='mb-4 p-4 bg-gray-800 rounded border border-gray-700'
+            >
+              <div className='flex justify-between mb-4 pb-4 border-b border-gray-700'>
+                <div>
+                  <h3 className='text-xl'>Resource Group {groupIndex + 1}</h3>
+                  <p className='text-sm text-gray-400'>
+                    {group.combinations.length} variation
+                    {group.combinations.length > 1 ? 's' : ''}
+                  </p>
+                </div>
+                <div className='p-3 bg-gray-900 rounded border border-gray-600'>
+                  <strong className='block mb-2'>Raw Materials:</strong>
+                  {group.rawMaterials.map((material) => (
+                    <div
+                      key={material}
+                      className='text-sm'
+                    >
+                      • {material.replace('Desc_', '').replace('_C', '')}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className='grid grid-cols-3 gap-4'>
+                {group.combinations.map((combo, index) => (
+                  <CombinationCard
+                    key={combo.id}
+                    combination={combo}
+                    index={index}
+                    isSelected={selectedCombination?.id === combo.id}
+                    onSelect={() => handleCombinationSelect(combo)}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
         </section>
       )}
 
       {/* Step 3: Show Selected Combination Details */}
       {selectedCombination && (
-        <section className='combination-details'>
-          <h2>Production Details</h2>
+        <section className='mt-8 p-4 bg-gray-800 rounded'>
+          <h2 className='text-2xl mb-4'>Production Details</h2>
           <CombinationDetails combination={selectedCombination} />
         </section>
       )}
@@ -149,37 +204,22 @@ function CombinationCard({
 
   return (
     <div
-      className={`combination-card ${isSelected ? 'selected' : ''}`}
+      className={`p-4 bg-gray-800 border rounded cursor-pointer ${
+        isSelected ? 'border-orange-500' : 'border-gray-600'
+      }`}
       onClick={onSelect}
     >
-      <div className='combination-header'>
+      <div className='flex justify-between mb-2'>
         <h3>Option {index + 1}</h3>
         {usesAlternates && (
-          <span className='alternate-badge'>Uses Alternates</span>
+          <span className='px-2 py-1 bg-orange-500 rounded text-xs'>
+            Alternates
+          </span>
         )}
       </div>
 
-      <div className='combination-content'>
-        <div className='raw-materials'>
-          <h4>Raw Materials Required:</h4>
-          <ul>
-            {combination.rawMaterials.length > 0 ? (
-              combination.rawMaterials.map((material) => (
-                <li key={material}>
-                  {material.replace('Desc_', '').replace('_C', '')}
-                </li>
-              ))
-            ) : (
-              <li>None (uses only manufactured items)</li>
-            )}
-          </ul>
-        </div>
-
-        <div className='combination-stats'>
-          <span className='stat'>
-            {combination.recipeChain.length} production steps
-          </span>
-        </div>
+      <div className='text-sm text-gray-400'>
+        {combination.recipeChain.length} steps
       </div>
     </div>
   );
@@ -195,46 +235,58 @@ interface CombinationDetailsProps {
 
 function CombinationDetails({ combination }: CombinationDetailsProps) {
   return (
-    <div className='details-container'>
-      <h3>Production Chain</h3>
-      <div className='recipe-chain'>
+    <div>
+      <h3 className='text-xl mb-4'>Production Tree</h3>
+      <pre className='p-4 bg-gray-900 rounded border border-gray-600 overflow-x-auto'>
+        {buildProductionTreeText(combination)}
+      </pre>
+
+      <h3 className='text-xl mt-8 mb-4'>Production Chain</h3>
+      <div>
         {combination.recipeChain.map((step, index) => (
           <div
             key={`${step.product}_${index}`}
-            className='recipe-step'
+            className='flex gap-4 mb-4 p-4 bg-gray-900 rounded'
           >
-            <div className='step-number'>{index + 1}</div>
-            <div className='step-content'>
-              <h4>
+            <div className='w-8 h-8 bg-orange-500 rounded flex items-center justify-center'>
+              {index + 1}
+            </div>
+            <div className='flex-1'>
+              <h4 className='text-lg mb-2'>
                 {step.productName}
                 {step.recipe.alternate && (
-                  <span className='alt-tag'>(Alternate)</span>
+                  <span className='text-orange-500 text-sm ml-2'>(Alt)</span>
                 )}
               </h4>
-              <p className='machine-type'>
-                Machine:{' '}
+              <p className='text-sm text-gray-400 mb-4'>
                 {step.recipe.machineType
                   .replace('Desc_', '')
                   .replace('Mk1_C', '')}
               </p>
 
-              <div className='recipe-io'>
-                <div className='inputs'>
-                  <strong>Inputs:</strong>
+              <div className='grid grid-cols-2 gap-4'>
+                <div>
+                  <strong className='block mb-2'>Inputs:</strong>
                   <ul>
                     {step.recipe.ingredients.map((ing) => (
-                      <li key={ing.item}>
+                      <li
+                        key={ing.item}
+                        className='text-sm text-gray-400'
+                      >
                         {ing.item.replace('Desc_', '').replace('_C', '')} (×
                         {ing.amount})
                       </li>
                     ))}
                   </ul>
                 </div>
-                <div className='outputs'>
-                  <strong>Outputs:</strong>
+                <div>
+                  <strong className='block mb-2'>Outputs:</strong>
                   <ul>
                     {step.recipe.products.map((prod) => (
-                      <li key={prod.item}>
+                      <li
+                        key={prod.item}
+                        className='text-sm text-gray-400'
+                      >
                         {prod.item.replace('Desc_', '').replace('_C', '')} (×
                         {prod.amount})
                       </li>
@@ -248,6 +300,65 @@ function CombinationDetails({ combination }: CombinationDetailsProps) {
       </div>
     </div>
   );
+}
+
+// Helper function to build ASCII tree
+function buildProductionTreeText(combination: ProductionCombination): string {
+  const { targetProduct, recipePath, rawMaterials } = combination;
+  const lines: string[] = [];
+  const processed = new Set<string>();
+
+  function buildTree(
+    item: string,
+    prefix: string = '',
+    isLast: boolean = true
+  ) {
+    if (processed.has(item)) {
+      lines.push(
+        `${prefix}${isLast ? '└── ' : '├── '}${cleanName(item)} [already shown]`
+      );
+      return;
+    }
+
+    processed.add(item);
+    const recipe = recipePath[item];
+
+    if (!recipe) {
+      // Raw material
+      lines.push(
+        `${prefix}${isLast ? '└── ' : '├── '}🔷 ${cleanName(item)} (raw)`
+      );
+      return;
+    }
+
+    // Show the item being produced
+    const alt = recipe.alternate ? ' [ALT]' : '';
+    lines.push(
+      `${prefix}${isLast ? '└── ' : '├── '}📦 ${cleanName(item)}${alt}`
+    );
+
+    const newPrefix = prefix + (isLast ? '    ' : '│   ');
+    const ingredients = recipe.ingredients;
+
+    ingredients.forEach((ing, index) => {
+      const isLastIng = index === ingredients.length - 1;
+      buildTree(ing.item, newPrefix, isLastIng);
+    });
+  }
+
+  lines.push(`🎯 TARGET: ${cleanName(targetProduct)}`);
+  lines.push('');
+  buildTree(targetProduct, '', true);
+
+  return lines.join('\n');
+}
+
+function cleanName(itemClass: string): string {
+  return itemClass
+    .replace('Desc_', '')
+    .replace('_C', '')
+    .replace(/([A-Z])/g, ' $1')
+    .trim();
 }
 
 // ============================================

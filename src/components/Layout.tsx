@@ -1,29 +1,11 @@
-import { Link, Outlet } from 'react-router-dom';
+import { Outlet } from 'react-router-dom';
+import Navigation from './Navigation';
 
 export default function Layout() {
   return (
-    <div className='app-container'>
-      <nav className='main-nav'>
-        <div className='nav-content'>
-          <Link
-            to='/'
-            className='logo'
-          >
-            Satisfactory Planner
-          </Link>
-
-          <div className='nav-links'>
-            <Link to='/'>Calculator</Link>
-            <Link to='/factories'>My Factories</Link>
-            <Link to='/blueprints'>Blueprints</Link>
-            <Link to='/profile'>Profile</Link>
-          </div>
-
-          <button className='auth-button'>Login</button>
-        </div>
-      </nav>
-
-      <main className='main-content'>
+    <div className='min-h-screen min-w-screen bg-gray-900 text-white'>
+      <Navigation />
+      <main>
         <Outlet />
       </main>
     </div>

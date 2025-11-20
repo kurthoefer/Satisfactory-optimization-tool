@@ -1,4 +1,4 @@
-import ProductionCalculator from '../components/calculator/CalculatorDemo';
+import ProductionCalculator from '../components/calculator/ProductionCalculator';
 import { useRecipeData } from '../hooks/useRecipeData';
 
 export default function Calculator() {
