@@ -27,14 +27,20 @@ const MAX_DEPTH = 20; // Limit recursion depth
 function generateRecipeCombinations(
   itemClassName: string,
   recipeIndex: RecipeIndex,
+  treatIngotsAsRaw: boolean = false,
   currentPath: RecipePath = {},
-  pathStack: string[] = [], // Track full path for circular detection
+  pathStack: string[] = [],
   depth: number = 0,
   combinationCount: { count: number } = { count: 0 }
 ): RecipePath[] {
   // FIRST: Check if this is a base resource (ore, water, etc.)
   // Stop recursion immediately - treat as "always available"
   if (isBaseResource(itemClassName)) {
+    return [currentPath];
+  }
+
+  // Check if this is an ingot and user wants to treat them as raw
+  if (treatIngotsAsRaw && itemClassName.includes('Ingot')) {
     return [currentPath];
   }
 
@@ -88,6 +94,7 @@ function generateRecipeCombinations(
         generateRecipeCombinations(
           ingredient,
           recipeIndex,
+          treatIngotsAsRaw,
           newPath,
           newPathStack,
           depth + 1,
@@ -139,7 +146,8 @@ function cartesianProduct(arrays: RecipePath[][]): RecipePath[] {
  */
 function extractRawMaterials(
   recipePath: RecipePath,
-  recipeIndex: RecipeIndex
+  recipeIndex: RecipeIndex,
+  treatIngotsAsRaw: boolean = false
 ): string[] {
   const rawMaterials = new Set<string>();
 
@@ -150,10 +158,12 @@ function extractRawMaterials(
 
       // It's a raw material if:
       // 1. It has no recipe, OR
-      // 2. It's in our BASE_RESOURCES list (treated as raw to avoid circular deps)
+      // 2. It's in our BASE_RESOURCES list (treated as raw to avoid circular deps), OR
+      // 3. It's an ingot and user wants to treat ingots as raw
       const hasRecipe = recipeIndex[itemClass]?.length > 0;
+      const isIngot = treatIngotsAsRaw && itemClass.includes('Ingot');
 
-      if (!hasRecipe || isBaseResource(itemClass)) {
+      if (!hasRecipe || isBaseResource(itemClass) || isIngot) {
         rawMaterials.add(itemClass);
       }
     });
@@ -203,9 +213,14 @@ function buildRecipeChain(
  */
 export function getAllProductionCombinations(
   targetProduct: string,
-  recipeIndex: RecipeIndex
+  recipeIndex: RecipeIndex,
+  treatIngotsAsRaw: boolean = false
 ): ProductionCombination[] {
-  const allPaths = generateRecipeCombinations(targetProduct, recipeIndex);
+  const allPaths = generateRecipeCombinations(
+    targetProduct,
+    recipeIndex,
+    treatIngotsAsRaw
+  );
 
   // Deduplicate paths - some combinations create identical paths
   const uniquePaths = new Map<string, RecipePath>();
@@ -222,7 +237,11 @@ export function getAllProductionCombinations(
   });
 
   return Array.from(uniquePaths.values()).map((path) => {
-    const rawMaterials = extractRawMaterials(path, recipeIndex);
+    const rawMaterials = extractRawMaterials(
+      path,
+      recipeIndex,
+      treatIngotsAsRaw
+    );
     const recipeChain = buildRecipeChain(targetProduct, path);
 
     // Use the same ID generation for consistency

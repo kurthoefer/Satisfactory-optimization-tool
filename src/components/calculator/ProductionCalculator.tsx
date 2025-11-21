@@ -1,9 +1,10 @@
 import { useState, useMemo } from 'react';
-import type { RecipeIndex, ProcessedRecipe } from '../../types';
+import type { ProcessedRecipe, RecipeIndex } from '../../types';
 import {
   getAllProductionCombinations,
   type ProductionCombination,
 } from '../../utils/recipeCombinations';
+import { getProducibleItems, getItemDisplayName } from '../../utils/itemNames';
 
 interface ProductionCalculatorProps {
   recipeIndex: RecipeIndex;
@@ -17,39 +18,28 @@ export default function ProductionCalculator({
   const [selectedProduct, setSelectedProduct] = useState<string>('');
   const [selectedCombination, setSelectedCombination] =
     useState<ProductionCombination | null>(null);
+  const [treatIngotsAsRaw, setTreatIngotsAsRaw] = useState(false);
 
   // Get list of all producible products for dropdown
   const productList = useMemo(() => {
-    const products = new Map<string, string>();
-
-    recipes.forEach((recipe) => {
-      recipe.products.forEach((product) => {
-        if (!products.has(product.item)) {
-          products.set(
-            product.item,
-            recipe.name.split(' ').slice(0, -1).join(' ') || recipe.name
-          );
-        }
-      });
-    });
-
-    return Array.from(products.entries()).sort((a, b) =>
-      a[1].localeCompare(b[1])
-    );
-  }, [recipes]);
+    return getProducibleItems(recipeIndex);
+  }, [recipeIndex]);
 
   // Generate combinations when product is selected
   const combinations = useMemo(() => {
     if (!selectedProduct) return [];
-    return getAllProductionCombinations(selectedProduct, recipeIndex);
-  }, [selectedProduct, recipeIndex]);
+    return getAllProductionCombinations(
+      selectedProduct,
+      recipeIndex,
+      treatIngotsAsRaw
+    );
+  }, [selectedProduct, recipeIndex, treatIngotsAsRaw]);
 
   // Group combinations by raw materials
   const groupedCombinations = useMemo(() => {
     const groups = new Map<string, ProductionCombination[]>();
 
     combinations.forEach((combo) => {
-      // Create a unique key from sorted raw materials
       const rawMaterialsKey = [...combo.rawMaterials].sort().join('|');
 
       if (!groups.has(rawMaterialsKey)) {
@@ -73,41 +63,20 @@ export default function ProductionCalculator({
     setSelectedCombination(combo);
   };
 
+  const handleIngotToggle = (checked: boolean) => {
+    setTreatIngotsAsRaw(checked);
+    setSelectedCombination(null);
+  };
+
   return (
-    <div className='production-calculator'>
-      {/* Step 1: Product Selection /*
-.production-tree {
-  background: #1a1a1a;
-  padding: 1.5rem;
-  border-radius: 4px;
-  border: 1px solid #444;
-  overflow-x: auto;
-  font-family: 'Courier New', monospace;
-  font-size: 0.9rem;
-  line-height: 1.6;
-  color: #ddd;
-  margin-bottom: 2rem;
-}
-
-.production-tree::-webkit-scrollbar {
-  height: 8px;
-}
-
-.production-tree::-webkit-scrollbar-track {
-  background: #0a0a0a;
-}
-
-.production-tree::-webkit-scrollbar-thumb {
-  background: #ff6b35;
-  border-radius: 4px;
-}
-*/}
-      <section className='product-selection'>
-        <h2>What do you want to produce?</h2>
+    <div className='min-w-screen p-8'>
+      {/* Step 1: Product Selection */}
+      <section className='mb-8 p-4 bg-gray-800 rounded'>
+        <h2 className='text-2xl mb-4'>What do you want to produce?</h2>
         <select
           value={selectedProduct}
           onChange={(e) => handleProductSelect(e.target.value)}
-          className='product-select'
+          className='w-full p-2 bg-gray-900 border border-gray-600 rounded'
         >
           <option value=''>Select a product...</option>
           {productList.map(([className, name]) => (
@@ -119,6 +88,17 @@ export default function ProductionCalculator({
             </option>
           ))}
         </select>
+
+        <button
+          onClick={() => handleIngotToggle(!treatIngotsAsRaw)}
+          className={`mt-4 px-4 py-2 rounded ${
+            treatIngotsAsRaw
+              ? 'bg-orange-500 text-white'
+              : 'bg-gray-700 text-gray-300'
+          }`}
+        >
+          {treatIngotsAsRaw ? '✓ ' : ''}Treat ingots as raw materials
+        </button>
       </section>
 
       {/* Step 2: Show Recipe Combinations grouped by raw materials */}
@@ -148,7 +128,7 @@ export default function ProductionCalculator({
                       key={material}
                       className='text-sm'
                     >
-                      • {material.replace('Desc_', '').replace('_C', '')}
+                      • {getItemDisplayName(material)}
                     </div>
                   ))}
                 </div>
@@ -180,10 +160,6 @@ export default function ProductionCalculator({
     </div>
   );
 }
-
-// ============================================
-// Combination Card Component
-// ============================================
 
 interface CombinationCardProps {
   combination: ProductionCombination;
@@ -225,10 +201,6 @@ function CombinationCard({
   );
 }
 
-// ============================================
-// Combination Details Component
-// ============================================
-
 interface CombinationDetailsProps {
   combination: ProductionCombination;
 }
@@ -259,9 +231,7 @@ function CombinationDetails({ combination }: CombinationDetailsProps) {
                 )}
               </h4>
               <p className='text-sm text-gray-400 mb-4'>
-                {step.recipe.machineType
-                  .replace('Desc_', '')
-                  .replace('Mk1_C', '')}
+                {getItemDisplayName(step.recipe.machineType)}
               </p>
 
               <div className='grid grid-cols-2 gap-4'>
@@ -273,8 +243,7 @@ function CombinationDetails({ combination }: CombinationDetailsProps) {
                         key={ing.item}
                         className='text-sm text-gray-400'
                       >
-                        {ing.item.replace('Desc_', '').replace('_C', '')} (×
-                        {ing.amount})
+                        {getItemDisplayName(ing.item)} (×{ing.amount})
                       </li>
                     ))}
                   </ul>
@@ -287,8 +256,7 @@ function CombinationDetails({ combination }: CombinationDetailsProps) {
                         key={prod.item}
                         className='text-sm text-gray-400'
                       >
-                        {prod.item.replace('Desc_', '').replace('_C', '')} (×
-                        {prod.amount})
+                        {getItemDisplayName(prod.item)} (×{prod.amount})
                       </li>
                     ))}
                   </ul>
@@ -302,9 +270,8 @@ function CombinationDetails({ combination }: CombinationDetailsProps) {
   );
 }
 
-// Helper function to build ASCII tree
 function buildProductionTreeText(combination: ProductionCombination): string {
-  const { targetProduct, recipePath, rawMaterials } = combination;
+  const { targetProduct, recipePath } = combination;
   const lines: string[] = [];
   const processed = new Set<string>();
 
@@ -315,7 +282,9 @@ function buildProductionTreeText(combination: ProductionCombination): string {
   ) {
     if (processed.has(item)) {
       lines.push(
-        `${prefix}${isLast ? '└── ' : '├── '}${cleanName(item)} [already shown]`
+        `${prefix}${isLast ? '└── ' : '├── '}${getItemDisplayName(
+          item
+        )} [already shown]`
       );
       return;
     }
@@ -324,17 +293,17 @@ function buildProductionTreeText(combination: ProductionCombination): string {
     const recipe = recipePath[item];
 
     if (!recipe) {
-      // Raw material
       lines.push(
-        `${prefix}${isLast ? '└── ' : '├── '}🔷 ${cleanName(item)} (raw)`
+        `${prefix}${isLast ? '└── ' : '├── '}🔷 ${getItemDisplayName(
+          item
+        )} (raw)`
       );
       return;
     }
 
-    // Show the item being produced
     const alt = recipe.alternate ? ' [ALT]' : '';
     lines.push(
-      `${prefix}${isLast ? '└── ' : '├── '}📦 ${cleanName(item)}${alt}`
+      `${prefix}${isLast ? '└── ' : '├── '}📦 ${getItemDisplayName(item)}${alt}`
     );
 
     const newPrefix = prefix + (isLast ? '    ' : '│   ');
@@ -346,183 +315,9 @@ function buildProductionTreeText(combination: ProductionCombination): string {
     });
   }
 
-  lines.push(`🎯 TARGET: ${cleanName(targetProduct)}`);
+  lines.push(`🎯 TARGET: ${getItemDisplayName(targetProduct)}`);
   lines.push('');
   buildTree(targetProduct, '', true);
 
   return lines.join('\n');
 }
-
-function cleanName(itemClass: string): string {
-  return itemClass
-    .replace('Desc_', '')
-    .replace('_C', '')
-    .replace(/([A-Z])/g, ' $1')
-    .trim();
-}
-
-// ============================================
-// Basic CSS (add to src/styles/calculator.css)
-// ============================================
-
-/*
-.production-calculator {
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-.product-selection {
-  background: #2a2a2a;
-  padding: 2rem;
-  border-radius: 8px;
-  margin-bottom: 2rem;
-}
-
-.product-select {
-  width: 100%;
-  padding: 0.75rem;
-  font-size: 1rem;
-  border: 2px solid #444;
-  border-radius: 4px;
-  background: #1a1a1a;
-  color: #fff;
-  margin-top: 1rem;
-}
-
-.combinations-section {
-  margin-bottom: 2rem;
-}
-
-.combinations-hint {
-  color: #aaa;
-  margin-bottom: 1rem;
-}
-
-.combinations-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 1rem;
-}
-
-.combination-card {
-  background: #2a2a2a;
-  border: 2px solid #444;
-  border-radius: 8px;
-  padding: 1.5rem;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.combination-card:hover {
-  border-color: #ff6b35;
-  transform: translateY(-2px);
-}
-
-.combination-card.selected {
-  border-color: #ff6b35;
-  background: #333;
-}
-
-.combination-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-
-.alternate-badge {
-  background: #ff6b35;
-  color: #fff;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.8rem;
-}
-
-.raw-materials ul {
-  list-style: none;
-  padding-left: 0;
-}
-
-.raw-materials li {
-  padding: 0.25rem 0;
-  color: #ddd;
-}
-
-.combination-stats {
-  margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid #444;
-  color: #aaa;
-  font-size: 0.9rem;
-}
-
-.combination-details {
-  background: #2a2a2a;
-  padding: 2rem;
-  border-radius: 8px;
-}
-
-.recipe-chain {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
-.recipe-step {
-  display: flex;
-  gap: 1rem;
-  background: #1a1a1a;
-  padding: 1rem;
-  border-radius: 4px;
-  border-left: 3px solid #ff6b35;
-}
-
-.step-number {
-  background: #ff6b35;
-  color: #fff;
-  width: 2rem;
-  height: 2rem;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-  flex-shrink: 0;
-}
-
-.step-content {
-  flex: 1;
-}
-
-.alt-tag {
-  color: #ff6b35;
-  font-size: 0.9rem;
-  margin-left: 0.5rem;
-}
-
-.machine-type {
-  color: #aaa;
-  font-size: 0.9rem;
-  margin: 0.5rem 0;
-}
-
-.recipe-io {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
-.recipe-io ul {
-  list-style: none;
-  padding-left: 0;
-  margin-top: 0.5rem;
-}
-
-.recipe-io li {
-  padding: 0.25rem 0;
-  color: #ddd;
-  font-size: 0.9rem;
-}
-*/
