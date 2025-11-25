@@ -177,6 +177,7 @@ function CombinationCard({
   const usesAlternates = Object.values(combination.recipePath).some(
     (r) => r.alternate
   );
+  const hasCircular = combination.circularEdges.length > 0;
 
   return (
     <div
@@ -187,15 +188,29 @@ function CombinationCard({
     >
       <div className='flex justify-between mb-2'>
         <h3>Option {index + 1}</h3>
-        {usesAlternates && (
-          <span className='px-2 py-1 bg-orange-500 rounded text-xs'>
-            Alternates
-          </span>
-        )}
+        <div className='flex gap-2'>
+          {usesAlternates && (
+            <span className='px-2 py-1 bg-orange-500 rounded text-xs'>
+              Alternates
+            </span>
+          )}
+          {hasCircular && (
+            <span
+              className='px-2 py-1 bg-blue-500 rounded text-xs'
+              title='Uses circular production'
+            >
+              🔄 Circular
+            </span>
+          )}
+        </div>
       </div>
 
       <div className='text-sm text-gray-400'>
         {combination.recipeChain.length} steps
+        {hasCircular &&
+          ` • ${combination.circularEdges.length} loop${
+            combination.circularEdges.length > 1 ? 's' : ''
+          }`}
       </div>
     </div>
   );
@@ -208,6 +223,36 @@ interface CombinationDetailsProps {
 function CombinationDetails({ combination }: CombinationDetailsProps) {
   return (
     <div>
+      {/* Show circular production info if present */}
+      {combination.circularEdges.length > 0 && (
+        <div className='mb-6 p-4 bg-blue-900 border border-blue-600 rounded'>
+          <h3 className='text-xl mb-3 flex items-center gap-2'>
+            🔄 Circular Production Detected
+          </h3>
+          <p className='text-sm text-gray-300 mb-3'>
+            This recipe chain uses its own outputs as inputs, creating an
+            efficient production loop.
+          </p>
+          <div className='space-y-2'>
+            {combination.circularEdges.map((edge, idx) => (
+              <div
+                key={idx}
+                className='text-sm p-2 bg-gray-800 rounded'
+              >
+                <span className='text-blue-400'>
+                  {getItemDisplayName(edge.from)}
+                </span>
+                {' → requires → '}
+                <span className='text-blue-400'>
+                  {getItemDisplayName(edge.to)}
+                </span>
+                {' (creates loop)'}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <h3 className='text-xl mb-4'>Production Tree</h3>
       <pre className='p-4 bg-gray-900 rounded border border-gray-600 overflow-x-auto'>
         {buildProductionTreeText(combination)}
@@ -271,9 +316,16 @@ function CombinationDetails({ combination }: CombinationDetailsProps) {
 }
 
 function buildProductionTreeText(combination: ProductionCombination): string {
-  const { targetProduct, recipePath } = combination;
+  const { targetProduct, recipePath, circularEdges } = combination;
   const lines: string[] = [];
   const processed = new Set<string>();
+
+  // Create a set of items that are part of circular dependencies for easy lookup
+  const circularItems = new Set<string>();
+  circularEdges.forEach((edge) => {
+    circularItems.add(edge.from);
+    circularItems.add(edge.to);
+  });
 
   function buildTree(
     item: string,
@@ -281,10 +333,12 @@ function buildProductionTreeText(combination: ProductionCombination): string {
     isLast: boolean = true
   ) {
     if (processed.has(item)) {
+      const isCircular = circularItems.has(item);
+      const marker = isCircular ? '🔄' : '📦';
       lines.push(
-        `${prefix}${isLast ? '└── ' : '├── '}${getItemDisplayName(
+        `${prefix}${isLast ? '└── ' : '├── '}${marker} ${getItemDisplayName(
           item
-        )} [already shown]`
+        )} ${isCircular ? '[⟲ CIRCULAR LOOP]' : '[already shown]'}`
       );
       return;
     }
@@ -302,8 +356,12 @@ function buildProductionTreeText(combination: ProductionCombination): string {
     }
 
     const alt = recipe.alternate ? ' [ALT]' : '';
+    const isCircular = circularItems.has(item);
+    const marker = isCircular ? '🔄' : '📦';
     lines.push(
-      `${prefix}${isLast ? '└── ' : '├── '}📦 ${getItemDisplayName(item)}${alt}`
+      `${prefix}${isLast ? '└── ' : '├── '}${marker} ${getItemDisplayName(
+        item
+      )}${alt}`
     );
 
     const newPrefix = prefix + (isLast ? '    ' : '│   ');
@@ -316,6 +374,13 @@ function buildProductionTreeText(combination: ProductionCombination): string {
   }
 
   lines.push(`🎯 TARGET: ${getItemDisplayName(targetProduct)}`);
+  if (circularEdges.length > 0) {
+    lines.push(
+      `🔄 Contains ${circularEdges.length} circular production loop${
+        circularEdges.length > 1 ? 's' : ''
+      }`
+    );
+  }
   lines.push('');
   buildTree(targetProduct, '', true);
 
