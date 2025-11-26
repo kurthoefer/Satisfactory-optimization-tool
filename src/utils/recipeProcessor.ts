@@ -11,41 +11,63 @@ const VALID_MACHINES = [
   'Desc_SmelterMk1_C',
 ];
 
-// Base resources that should be treated as raw materials (stop recursion)
-// Even if they appear as byproducts in recipes
+// ============================================================================
+// BASE_RESOURCES: True raw/extractable resources only
+// These are mined, pumped, or extracted - they have NO production recipes
+// ============================================================================
 const BASE_RESOURCES = [
-  'Desc_Water_C',
+  // Solid ores
   'Desc_OreIron_C',
   'Desc_OreCopper_C',
   'Desc_Stone_C',
   'Desc_Coal_C',
-  'Desc_OreGold_C', // Caterium
+  'Desc_OreGold_C', // Caterium Ore
   'Desc_RawQuartz_C',
   'Desc_Sulfur_C',
   'Desc_OreBauxite_C',
   'Desc_OreUranium_C',
+  'Desc_SAM_C',
+  // Fluids (extracted/pumped)
+  'Desc_Water_C',
   'Desc_LiquidOil_C', // Crude Oil
   'Desc_NitrogenGas_C',
-  'Desc_SAM_C',
-  // Items that create circular dependencies due to alternate recipes
-  'Desc_Rubber_C',
-  'Desc_Plastic_C',
-  'Desc_SulfuricAcid_C',
-  'Desc_Silica_C',
-  'Desc_DissolvedSilica_C',
-  'Desc_NitricAcid_C',
-  'Desc_Cement_C',
-  // Fuel chain items (create circular dependencies)
-  'Desc_CompactedCoal_C',
-  'Desc_LiquidTurboFuel_C',
-  'Desc_RocketFuel_C',
-  'Desc_LiquidFuel_C',
-  'Desc_Fuel_C',
 ];
 
-// Check if an item is a base resource
+// ============================================================================
+// CIRCULAR_RISK_ITEMS: Items that CAN create circular dependencies
+// These have alternate recipes that may reference each other
+// We still try to find recipes for them, but handle cycles gracefully
+// ============================================================================
+const CIRCULAR_RISK_ITEMS = [
+  // Oil byproducts (Plastic <-> Rubber via Recycled recipes)
+  'Desc_Rubber_C',
+  'Desc_Plastic_C',
+  'Desc_HeavyOilResidue_C',
+  // Acids (can have circular alternate recipes)
+  'Desc_SulfuricAcid_C',
+  'Desc_NitricAcid_C',
+  // Silica chain
+  'Desc_Silica_C',
+  'Desc_DissolvedSilica_C',
+  // Concrete/Cement
+  'Desc_Cement_C',
+  // Fuel chain (multiple interconnected recipes)
+  'Desc_LiquidFuel_C',
+  'Desc_Fuel_C',
+  'Desc_LiquidTurboFuel_C',
+  'Desc_RocketFuel_C',
+  'Desc_CompactedCoal_C',
+  'Desc_LiquidBiofuel_C',
+];
+
+// Check if an item is a true base resource (mined/extracted)
 export function isBaseResource(itemClassName: string): boolean {
   return BASE_RESOURCES.includes(itemClassName);
+}
+
+// Check if an item is known to cause circular dependencies
+export function isCircularRisk(itemClassName: string): boolean {
+  return CIRCULAR_RISK_ITEMS.includes(itemClassName);
 }
 
 // Packaged items that cause circular dependencies
