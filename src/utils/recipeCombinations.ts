@@ -28,6 +28,26 @@ export interface ProductionCombination {
 const MAX_COMBINATIONS = 1000;
 const MAX_DEPTH = 20;
 
+// Memoization cache: stores results for item+context combinations
+// Key format: "itemClassName|treatIngotsAsRaw|pathStackHash"
+const memoCache = new Map<string, RecipeResult[]>();
+
+// Helper to create cache key
+function getCacheKey(
+  itemClassName: string,
+  treatIngotsAsRaw: boolean,
+  pathStack: string[]
+): string {
+  // Include pathStack to detect circular contexts
+  const pathHash = pathStack.join('→');
+  return `${itemClassName}|${treatIngotsAsRaw}|${pathHash}`;
+}
+
+// Helper to clear cache (call this when starting a new product calculation)
+function clearMemoCache() {
+  memoCache.clear();
+}
+
 interface RecipeResult {
   path: RecipePath;
   circulars: CircularEdge[];
@@ -47,24 +67,49 @@ function generateRecipeCombinations(
   depth: number = 0,
   combinationCount: { count: number } = { count: 0 }
 ): RecipeResult[] {
+  // Check memoization cache first
+  const cacheKey = getCacheKey(itemClassName, treatIngotsAsRaw, pathStack);
+  if (memoCache.has(cacheKey)) {
+    const cached = memoCache.get(cacheKey)!;
+    if (depth <= 3) {
+      console.log(
+        `${'  '.repeat(depth)}💾 CACHE HIT for ${itemClassName} (${
+          cached.length
+        } results)`
+      );
+    }
+    return cached;
+  }
+
+  // Debug logging for root level and first few depths
+  if (depth <= 3) {
+    console.log(`${'  '.repeat(depth)}🌱 [depth ${depth}] ${itemClassName}`);
+  }
+
   // FIRST: Check if this is a base resource (ore, water, etc.)
   if (isBaseResource(itemClassName)) {
+    if (depth <= 3)
+      console.log(`${'  '.repeat(depth)}  ✓ ${itemClassName} is base resource`);
     return [{ path: currentPath, circulars: circularEdges }];
   }
 
   // Check if this is an ingot and user wants to treat them as raw
   if (treatIngotsAsRaw && itemClassName.includes('Ingot')) {
+    if (depth <= 3)
+      console.log(
+        `${'  '.repeat(depth)}  ✓ ${itemClassName} is ingot (treated as raw)`
+      );
     return [{ path: currentPath, circulars: circularEdges }];
   }
 
   // SECOND: Check for circular dependency in current path
   if (pathStack.includes(itemClassName)) {
-    // This is a circular reference! Track it.
+    if (depth <= 3)
+      console.log(`${'  '.repeat(depth)}  🔄 ${itemClassName} is CIRCULAR`);
     const indexInPath = pathStack.indexOf(itemClassName);
     const circularTo = pathStack[indexInPath];
-    const circularFrom = pathStack[pathStack.length - 1]; // The item that needs this circular ingredient
+    const circularFrom = pathStack[pathStack.length - 1];
 
-    // Find the recipe that's trying to use this circular ingredient
     const recipeUsing = currentPath[circularFrom]?.className || circularFrom;
 
     const newCircularEdge: CircularEdge = {
@@ -73,14 +118,12 @@ function generateRecipeCombinations(
       recipeUsing: recipeUsing,
     };
 
-    // Log for debugging (optional - can remove if too noisy)
     if (!isCircularRisk(itemClassName)) {
       console.info(
         `🔄 Circular production detected: ${circularFrom} → ${circularTo} (via ${recipeUsing})`
       );
     }
 
-    // Stop recursion but return the path with this circular edge noted
     return [
       { path: currentPath, circulars: [...circularEdges, newCircularEdge] },
     ];
@@ -89,7 +132,19 @@ function generateRecipeCombinations(
   // THIRD: Check if no recipes exist
   const availableRecipes = recipeIndex[itemClassName] || [];
   if (availableRecipes.length === 0) {
+    if (depth <= 3)
+      console.log(
+        `${'  '.repeat(depth)}  ✗ ${itemClassName} has no recipes available!`
+      );
     return [{ path: currentPath, circulars: circularEdges }];
+  }
+
+  if (depth <= 3) {
+    console.log(
+      `${'  '.repeat(depth)}  📋 ${itemClassName} has ${
+        availableRecipes.length
+      } recipes`
+    );
   }
 
   // Safety: Limit recursion depth
@@ -100,8 +155,22 @@ function generateRecipeCombinations(
 
   // Safety: Limit total combinations
   if (combinationCount.count > MAX_COMBINATIONS) {
-    console.warn(`Max combo count reached`);
+    if (depth <= 3) {
+      console.warn(
+        `${'  '.repeat(depth)}  ⚠️ ALREADY AT MAX (${
+          combinationCount.count
+        }), returning empty for ${itemClassName}`
+      );
+    }
     return [];
+  }
+
+  if (depth <= 3) {
+    console.log(
+      `${'  '.repeat(depth)}  🎲 Current combo count: ${
+        combinationCount.count
+      }/${MAX_COMBINATIONS}`
+    );
   }
 
   const allCombinations: RecipeResult[] = [];
@@ -112,6 +181,12 @@ function generateRecipeCombinations(
     const newPath = { ...currentPath, [itemClassName]: recipe };
     const ingredients = recipe.ingredients.map((ing) => ing.item);
 
+    if (depth === 0) {
+      console.log(
+        `    Recipe: ${recipe.name}, ingredients: ${ingredients.length}`
+      );
+    }
+
     if (ingredients.length === 0) {
       // No ingredients needed
       allCombinations.push({ path: newPath, circulars: circularEdges });
@@ -121,8 +196,8 @@ function generateRecipeCombinations(
 
     // Recursively generate combinations for each ingredient
     const ingredientCombinations: RecipeResult[][] = ingredients.map(
-      (ingredient) =>
-        generateRecipeCombinations(
+      (ingredient, idx) => {
+        const result = generateRecipeCombinations(
           ingredient,
           recipeIndex,
           treatIngotsAsRaw,
@@ -131,13 +206,38 @@ function generateRecipeCombinations(
           circularEdges,
           depth + 1,
           combinationCount
-        )
+        );
+        if (depth <= 2) {
+          console.log(
+            `${'  '.repeat(depth)}      Ingredient ${idx} (${ingredient}): ${
+              result.length
+            } results`
+          );
+        }
+        return result;
+      }
     );
+
+    if (depth === 0) {
+      console.log(
+        `    Ingredient combos generated: ${ingredientCombinations
+          .map((ic) => ic.length)
+          .join(', ')}`
+      );
+    }
 
     // Combine all ingredient combinations (cartesian product)
     const combinedResults = cartesianProductWithCirculars(
       ingredientCombinations
     );
+
+    if (depth <= 2) {
+      console.log(
+        `${'  '.repeat(depth)}      Combined results from cart product: ${
+          combinedResults.length
+        }`
+      );
+    }
 
     // Check if we're exceeding limits
     if (combinationCount.count + combinedResults.length > MAX_COMBINATIONS) {
@@ -150,6 +250,17 @@ function generateRecipeCombinations(
     allCombinations.push(...combinedResults);
     combinationCount.count += combinedResults.length;
   }
+
+  if (depth <= 3) {
+    console.log(
+      `${'  '.repeat(depth)}  📦 Returning ${
+        allCombinations.length
+      } combos for ${itemClassName}`
+    );
+  }
+
+  // Store in cache before returning
+  memoCache.set(cacheKey, allCombinations);
 
   return allCombinations;
 }
@@ -247,11 +358,22 @@ export function getAllProductionCombinations(
   recipeIndex: RecipeIndex,
   treatIngotsAsRaw: boolean = false
 ): ProductionCombination[] {
+  console.log(
+    `🔍 Generating combinations for: ${targetProduct}, treatIngotsAsRaw: ${treatIngotsAsRaw}`
+  );
+
+  // Clear memoization cache for new product calculation
+  clearMemoCache();
+  console.log(`🗑️  Cache cleared for new product calculation`);
+
   const allResults = generateRecipeCombinations(
     targetProduct,
     recipeIndex,
     treatIngotsAsRaw
   );
+
+  console.log(`📊 Generated ${allResults.length} raw results`);
+  console.log(`💾 Cache size: ${memoCache.size} entries`);
 
   // Deduplicate paths
   const uniquePaths = new Map<string, RecipeResult>();
@@ -266,6 +388,10 @@ export function getAllProductionCombinations(
       uniquePaths.set(pathId, result);
     }
   });
+
+  console.log(
+    `✅ After deduplication: ${uniquePaths.size} unique combinations`
+  );
 
   return Array.from(uniquePaths.values()).map((result) => {
     const rawMaterials = extractRawMaterials(
