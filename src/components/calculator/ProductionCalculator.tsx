@@ -13,7 +13,7 @@ import { getProducibleItems, getItemDisplayName } from '../../utils/itemNames';
 interface ProductionCalculatorProps {
   recipeIndex: RecipeIndex;
   recipes: ProcessedRecipe[];
-  circularAnalysis: CircularAnalysis;
+  circularAnalysis?: CircularAnalysis;
 }
 
 export default function ProductionCalculator({
