@@ -1,4 +1,9 @@
-import type { ProcessedRecipe, Recipe, RecipeIndex } from '../types';
+import type {
+  ProcessedRecipe,
+  Recipe,
+  RecipeIndex,
+  CircularAnalysis,
+} from '../types';
 
 const VALID_MACHINES = [
   'Desc_AssemblerMk1_C',
@@ -169,16 +174,167 @@ export function indexRecipesByProduct(recipes: ProcessedRecipe[]): RecipeIndex {
 }
 
 /**
+ * Find strongly connected components using Tarjan's algorithm
+ * Returns groups of items that form circular dependency loops
+ */
+export function findStronglyConnectedComponents(
+  recipeIndex: RecipeIndex
+): CircularAnalysis {
+  // Tarjan's algorithm state
+  let index = 0;
+  const indices = new Map<string, number>();
+  const lowLinks = new Map<string, number>();
+  const onStack = new Set<string>();
+  const stack: string[] = [];
+  const sccs: string[][] = [];
+
+  // Get all items in the graph
+  const allItems = new Set<string>();
+  Object.keys(recipeIndex).forEach((item) => allItems.add(item));
+  Object.values(recipeIndex).forEach((recipes) => {
+    recipes.forEach((recipe) => {
+      recipe.ingredients.forEach((ing) => allItems.add(ing.item));
+    });
+  });
+
+  function strongConnect(item: string) {
+    // Set the depth index for this node
+    indices.set(item, index);
+    lowLinks.set(item, index);
+    index++;
+    stack.push(item);
+    onStack.add(item);
+
+    // Get all items this item depends on (via its recipes)
+    const recipes = recipeIndex[item] || [];
+    for (const recipe of recipes) {
+      for (const ingredient of recipe.ingredients) {
+        const successor = ingredient.item;
+
+        if (!indices.has(successor)) {
+          // Successor has not yet been visited; recurse
+          strongConnect(successor);
+          lowLinks.set(
+            item,
+            Math.min(lowLinks.get(item)!, lowLinks.get(successor)!)
+          );
+        } else if (onStack.has(successor)) {
+          // Successor is in stack and hence in the current SCC
+          lowLinks.set(
+            item,
+            Math.min(lowLinks.get(item)!, indices.get(successor)!)
+          );
+        }
+      }
+    }
+
+    // If this is a root node, pop the stack to create an SCC
+    if (lowLinks.get(item) === indices.get(item)) {
+      const scc: string[] = [];
+      let w: string;
+      do {
+        w = stack.pop()!;
+        onStack.delete(w);
+        scc.push(w);
+      } while (w !== item);
+
+      sccs.push(scc);
+    }
+  }
+
+  // Run Tarjan's algorithm on all nodes
+  for (const item of allItems) {
+    if (!indices.has(item)) {
+      strongConnect(item);
+    }
+  }
+
+  // Process results
+  const itemToSCC = new Map<string, number>();
+  const circularItems = new Set<string>();
+
+  sccs.forEach((scc, index) => {
+    // An SCC is circular if it has more than 1 item, OR if it has 1 item that depends on itself
+    const isCircular =
+      scc.length > 1 || (scc.length === 1 && hasSelfLoop(scc[0], recipeIndex));
+
+    scc.forEach((item) => {
+      itemToSCC.set(item, index);
+      if (isCircular) {
+        circularItems.add(item);
+      }
+    });
+  });
+
+  // Find which recipes cause circular dependencies
+  const circularRecipes = new Set<string>();
+  Object.entries(recipeIndex).forEach(([product, recipes]) => {
+    if (circularItems.has(product)) {
+      recipes.forEach((recipe) => {
+        // Check if any ingredient is in the same SCC (creates a cycle)
+        const productSCC = itemToSCC.get(product);
+        const hasCircularIngredient = recipe.ingredients.some(
+          (ing) => itemToSCC.get(ing.item) === productSCC
+        );
+
+        if (hasCircularIngredient) {
+          circularRecipes.add(recipe.className);
+        }
+      });
+    }
+  });
+
+  console.log(`🔍 Tarjan's Algorithm Results:`);
+  console.log(`   Total SCCs: ${sccs.length}`);
+  console.log(
+    `   Circular SCCs: ${
+      sccs.filter(
+        (scc) =>
+          scc.length > 1 ||
+          (scc.length === 1 && hasSelfLoop(scc[0], recipeIndex))
+      ).length
+    }`
+  );
+  console.log(`   Circular Items: ${circularItems.size}`);
+  console.log(`   Circular Recipes: ${circularRecipes.size}`);
+
+  return {
+    stronglyConnectedComponents: sccs,
+    itemToSCC,
+    circularItems,
+    circularRecipes,
+  };
+}
+
+/**
+ * Check if an item has a recipe that uses itself as an ingredient
+ */
+function hasSelfLoop(item: string, recipeIndex: RecipeIndex): boolean {
+  const recipes = recipeIndex[item] || [];
+  return recipes.some((recipe) =>
+    recipe.ingredients.some((ing) => ing.item === item)
+  );
+}
+/**
  * Main initialization function - call this once on app load
  */
 export function initializeRecipeData(rawRecipeData: any) {
+  console.log('🏭 Initializing recipe data...');
+
   const filteredRecipes = filterFactoryRecipes(rawRecipeData);
+  console.log(`   Filtered recipes: ${filteredRecipes.length}`);
+
   const processedRecipes = processRecipes(filteredRecipes);
   const recipeIndex = indexRecipesByProduct(processedRecipes);
+  console.log(`   Indexed products: ${Object.keys(recipeIndex).length}`);
+
+  // Run Tarjan's algorithm to find circular dependencies
+  const circularAnalysis = findStronglyConnectedComponents(recipeIndex);
 
   return {
     recipes: processedRecipes,
     recipeIndex,
+    circularAnalysis,
   };
 }
 

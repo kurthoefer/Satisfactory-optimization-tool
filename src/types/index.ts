@@ -28,3 +28,10 @@ export interface ProcessedRecipe extends Recipe {
 export interface RecipeIndex {
   [productClassName: string]: ProcessedRecipe[];
 }
+
+export interface CircularAnalysis {
+  stronglyConnectedComponents: string[][]; // Groups of items in cycles
+  itemToSCC: Map<string, number>; // item -> which SCC index it belongs to
+  circularItems: Set<string>; // Quick lookup: is this item circular?
+  circularRecipes: Set<string>; // Recipe classNames that cause cycles
+}

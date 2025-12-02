@@ -2,7 +2,7 @@ import ProductionCalculator from '../components/calculator/ProductionCalculator'
 import { useRecipeData } from '../hooks/useRecipeData';
 
 export default function Home() {
-  const { recipes, recipeIndex } = useRecipeData();
+  const { recipes, recipeIndex, circularAnalysis } = useRecipeData();
 
   /***********************
    ** DEBUG EARLY LOGING**
@@ -35,6 +35,7 @@ export default function Home() {
       <ProductionCalculator
         recipeIndex={recipeIndex}
         recipes={recipes}
+        circularAnalysis={circularAnalysis}
       />
     </div>
   );

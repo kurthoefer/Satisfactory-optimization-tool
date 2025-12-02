@@ -1,5 +1,9 @@
 import { useState, useMemo } from 'react';
-import type { ProcessedRecipe, RecipeIndex } from '../../types';
+import type {
+  ProcessedRecipe,
+  RecipeIndex,
+  CircularAnalysis,
+} from '../../types';
 import {
   getAllProductionCombinations,
   type ProductionCombination,
@@ -9,11 +13,12 @@ import { getProducibleItems, getItemDisplayName } from '../../utils/itemNames';
 interface ProductionCalculatorProps {
   recipeIndex: RecipeIndex;
   recipes: ProcessedRecipe[];
+  circularAnalysis: CircularAnalysis;
 }
 
 export default function ProductionCalculator({
   recipeIndex,
-  recipes,
+  circularAnalysis,
 }: ProductionCalculatorProps) {
   const [selectedProduct, setSelectedProduct] = useState<string>('');
   const [selectedCombination, setSelectedCombination] =
@@ -31,9 +36,10 @@ export default function ProductionCalculator({
     return getAllProductionCombinations(
       selectedProduct,
       recipeIndex,
+      circularAnalysis,
       treatIngotsAsRaw
     );
-  }, [selectedProduct, recipeIndex, treatIngotsAsRaw]);
+  }, [selectedProduct, recipeIndex, circularAnalysis, treatIngotsAsRaw]);
 
   // Group combinations by raw materials
   const groupedCombinations = useMemo(() => {
@@ -48,7 +54,7 @@ export default function ProductionCalculator({
       groups.get(rawMaterialsKey)!.push(combo);
     });
 
-    return Array.from(groups.entries()).map(([key, combos]) => ({
+    return Array.from(groups.entries()).map(([_key, combos]) => ({
       rawMaterials: combos[0].rawMaterials,
       combinations: combos,
     }));

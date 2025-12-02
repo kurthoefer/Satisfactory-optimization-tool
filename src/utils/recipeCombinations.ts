@@ -1,4 +1,4 @@
-import type { ProcessedRecipe, RecipeIndex } from '../types';
+import type { ProcessedRecipe, RecipeIndex, CircularAnalysis } from '../types';
 import { isBaseResource, isCircularRisk } from './recipeProcessor';
 
 export interface RecipePath {
@@ -60,6 +60,7 @@ interface RecipeResult {
 function generateRecipeCombinations(
   itemClassName: string,
   recipeIndex: RecipeIndex,
+  circularAnalysis: CircularAnalysis,
   treatIngotsAsRaw: boolean = false,
   currentPath: RecipePath = {},
   pathStack: string[] = [],
@@ -139,11 +140,28 @@ function generateRecipeCombinations(
     return [{ path: currentPath, circulars: circularEdges }];
   }
 
+  // FILTER OUT CIRCULAR RECIPES (Tarjan's algorithm results)
+  const nonCircularRecipes = availableRecipes.filter(
+    (recipe) => !circularAnalysis.circularRecipes.has(recipe.className)
+  );
+
+  // If all recipes are circular, use the first one but mark it
+  const recipesToUse =
+    nonCircularRecipes.length > 0 ? nonCircularRecipes : [availableRecipes[0]];
+
   if (depth <= 3) {
+    const filtered = availableRecipes.length - recipesToUse.length;
+    if (filtered > 0) {
+      console.log(
+        `${'  '.repeat(
+          depth
+        )}  🚫 Filtered ${filtered} circular recipes for ${itemClassName}`
+      );
+    }
     console.log(
       `${'  '.repeat(depth)}  📋 ${itemClassName} has ${
-        availableRecipes.length
-      } recipes`
+        recipesToUse.length
+      } non-circular recipes`
     );
   }
 
@@ -177,7 +195,7 @@ function generateRecipeCombinations(
   const newPathStack = [...pathStack, itemClassName];
 
   // Try each available recipe for this item
-  for (const recipe of availableRecipes) {
+  for (const recipe of recipesToUse) {
     const newPath = { ...currentPath, [itemClassName]: recipe };
     const ingredients = recipe.ingredients.map((ing) => ing.item);
 
@@ -200,6 +218,7 @@ function generateRecipeCombinations(
         const result = generateRecipeCombinations(
           ingredient,
           recipeIndex,
+          circularAnalysis,
           treatIngotsAsRaw,
           newPath,
           newPathStack,
@@ -356,6 +375,7 @@ function buildRecipeChain(
 export function getAllProductionCombinations(
   targetProduct: string,
   recipeIndex: RecipeIndex,
+  circularAnalysis: CircularAnalysis,
   treatIngotsAsRaw: boolean = false
 ): ProductionCombination[] {
   console.log(
@@ -369,6 +389,7 @@ export function getAllProductionCombinations(
   const allResults = generateRecipeCombinations(
     targetProduct,
     recipeIndex,
+    circularAnalysis,
     treatIngotsAsRaw
   );
 
