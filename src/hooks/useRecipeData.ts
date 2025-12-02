@@ -4,9 +4,9 @@ import recipeData from '../data/recipedata.json';
 
 // Only process once on mount
 export function useRecipeData() {
-  const { recipes, recipeIndex } = useMemo(() => {
+  const { recipes, recipeIndex, circularAnalysis } = useMemo(() => {
     return initializeRecipeData(recipeData);
   }, []);
 
-  return { recipes, recipeIndex };
+  return { recipes, recipeIndex, circularAnalysis };
 }

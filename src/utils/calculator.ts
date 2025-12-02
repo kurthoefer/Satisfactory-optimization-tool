@@ -77,8 +77,8 @@ function calculateProductionNode(
   }
   visited.add(itemClassName);
 
-  // Calculate requirements for each ingredient
-  const actualProductionRate = node.machinesNeeded * outputInfo.rate;
+  //TODO: Calculate requirements for each ingredient
+  // const actualProductionRate = node.machinesNeeded * outputInfo.rate;
 
   recipe.inputRates.forEach((input) => {
     // Calculate how much of this ingredient we need per minute
