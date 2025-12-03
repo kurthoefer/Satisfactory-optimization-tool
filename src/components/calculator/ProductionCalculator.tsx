@@ -16,6 +16,8 @@ interface ProductionCalculatorProps {
   circularAnalysis?: CircularAnalysis;
 }
 
+// TODO: circularAnalysis is handed "undefined" on certain executions (maybe all?)
+// TODO: trace back circularAnalysis, fix for typescript.
 export default function ProductionCalculator({
   recipeIndex,
   circularAnalysis,
