@@ -3,7 +3,7 @@ import type {
   Recipe,
   RecipeIndex,
   CircularAnalysis,
-} from '../types';
+} from '../types/index-old';
 
 const VALID_MACHINES = [
   'Desc_AssemblerMk1_C',

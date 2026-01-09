@@ -1,4 +1,4 @@
-import type { ProcessedRecipe, RecipeIndex } from '../types';
+import type { ProcessedRecipe, RecipeIndex } from '../types/index-old';
 
 export interface ProductionNode {
   item: string;

@@ -1,4 +1,8 @@
-import type { ProcessedRecipe, RecipeIndex, CircularAnalysis } from '../types';
+import type {
+  ProcessedRecipe,
+  RecipeIndex,
+  CircularAnalysis,
+} from '../types/index-old';
 import { isBaseResource, isCircularRisk } from './recipeProcessor';
 
 export interface RecipePath {
