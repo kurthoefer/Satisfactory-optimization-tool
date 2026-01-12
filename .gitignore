@@ -25,3 +25,4 @@ dist-ssr
 
 # Private
 notes.mdpublic/images/items/
+.env
