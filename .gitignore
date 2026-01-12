@@ -24,5 +24,8 @@ dist-ssr
 *.sw?
 
 # Private
-notes.mdpublic/images/items/
+notes.md
 .env
+
+# Local dev only
+public/images/items/
