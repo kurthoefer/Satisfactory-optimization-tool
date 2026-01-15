@@ -1,37 +1,89 @@
+/**
+ * Shared TypeScript types for Satisfactory Optimization Tool
+ * Single source of truth for all data structures
+ */
+
+// ============================================================================
+// PRODUCT TYPES
+// ============================================================================
+
+export interface Product {
+  id: string;
+  slug: string;
+  name: string;
+  className: string;
+  description: string;
+  form: string;
+  stackSize: string;
+  energyValue: number;
+  radioactive: number;
+  category: string;
+}
+
+export interface ProductsByCategory {
+  [category: string]: Product[];
+}
+
+// ============================================================================
+// RECIPE TYPES
+// ============================================================================
+
 export interface RecipeIngredient {
-  item: string;
+  className: string;
   amount: number;
 }
 
 export interface RecipeProduct {
-  item: string;
+  className: string;
   amount: number;
 }
 
 export interface Recipe {
+  id: string;
   className: string;
-  name: string;
-  duration: number;
+  displayName: string;
+  type: 'standard' | 'alternate' | 'residual' | 'unpackage';
   ingredients: RecipeIngredient[];
   products: RecipeProduct[];
-  producedIn: string[];
-  alternate: boolean;
+  time: number;
+  producedIn: string;
+  isAlternate: boolean;
+  manualMultiplier: number;
+  isVariable: boolean;
 }
 
-export interface ProcessedRecipe extends Recipe {
-  // Rates per minute
-  inputRates: Array<{ item: string; rate: number }>;
-  outputRates: Array<{ item: string; rate: number }>;
-  machineType: string;
+// ============================================================================
+// CIRCULAR DEPENDENCY ANALYSIS
+// ============================================================================
+
+export interface CircularRelationships {
+  stronglyConnectedComponents: string[][];
+  circularItems: string[];
+  circularRecipes: string[];
 }
 
-export interface RecipeIndex {
-  [productClassName: string]: ProcessedRecipe[];
+// ============================================================================
+// ORGANIZED RECIPE DATA STRUCTURE
+// ============================================================================
+
+export interface RecipesOrganized {
+  all: Recipe[];
+  byProduct: { [className: string]: Recipe[] };
+  byIngredient: { [className: string]: Recipe[] };
+  byMachine: { [machine: string]: Recipe[] };
+  alternates: Recipe[];
+  circularRelationships: CircularRelationships;
 }
 
-export interface CircularAnalysis {
-  stronglyConnectedComponents: string[][]; // Groups of items in cycles
-  itemToSCC: Map<string, number>; // item -> which SCC index it belongs to
-  circularItems: Set<string>; // Quick lookup: is this item circular?
-  circularRecipes: Set<string>; // Recipe classNames that cause cycles
+// ============================================================================
+// TREE VISUALIZATION TYPES
+// ============================================================================
+
+export interface TreeNode {
+  name: string; // Display name (e.g., "Iron Ingot")
+  className: string; // Product className (e.g., "Desc_IronIngot_C")
+  children?: TreeNode[]; // Child nodes (ingredients)
+  recipes?: string[]; // Recipe IDs that produce this product
+  isCircular?: boolean; // Whether this item is part of circular dependency
+  depth: number; // Depth in the tree (0 = root)
 }

@@ -1,0 +1,96 @@
+.
+|____tsconfig.node.json
+|____index.html
+|____LICENSE
+|____tsconfig.app.json
+|____README.md
+|____public
+| |____images
+| | |____cart-race.png
+| | |____logo
+| | | |____satisfactorySmall.png
+| | |____icons
+| | | |____placeholder.png
+| | |____items
+| | | |____desc-chainlinkfence-c_256.png
+| | | |____schematic-alternate-uraniumcell1-c_64.png
+| | | |____desc-powerpolewallmk3-c_256.png
+| | | |____resourcesink-cyberwagon-c_256.png
+| | | |____desc-quarterpipe-grip-8x4-c_256.png
+| | | |____desc-ramp-8x2-01-c_64.png
+| | | |____resourcesink-quartzcrystal-c_256.png
+| | | |____resourcesink-streetlight-c_64.png
+| | | |____schematic-alternate-reinforcedsteelplate-c_256.png
+| | | |____desc-wall-orange-angular-8x8-c_64.png
+| | | |____schematic-alternate-quickwire-c_256.png
+| | | |____desc-quantumenergy-c_256.png
+| | | |____resourcesink-customizer-steelwallmaterial-c_256.png
+| | | |____desc-foundation-asphalt-8x2-c_64.png
+| | | |____resourcesink-ionizedfuel-c_64.png
+| |____vite.svg
+|____package-lock.json
+|____package.json
+|____scripts
+| |____parseRecipes.ts
+| |____parseProducts.ts
+|____tsconfig.json
+|____eslint.config.js
+|____notes.md
+|____vite.config.ts
+|_____docs.json
+|____src
+| |____App.tsx
+| |____main.tsx
+| |____types
+| | |____index-old.ts
+| | |____index.ts
+| |____utils
+| | |____recipeProcessor.ts
+| | |____recipeProcessorV2.ts
+| | |____calculator.ts
+| | |____recipeCombinations.ts
+| | |____itemNames.ts
+| | |____imageHelper.ts
+| | |____slugify.ts
+| |____index.css
+| |____schemas
+| | |____products.ts
+| | |____recipies.ts
+| |____components
+| | |____ui
+| | | |____ProductGrid.tsx
+| | | |____ProductTile.tsx
+| | | |____Dropdown.tsx
+| | | |____CategoryHeader.tsx
+| | | |____Input.tsx
+| | |____calculator
+| | | |____ProductionCalculator.tsx
+| | |____ProductAutocomplete.tsx
+| | |____Layout.tsx
+| | |____Navigation.tsx
+| |____router.tsx
+| |____data
+| | |____products-flat.json
+| | |____recipes.d.ts
+| | |____recipes.json
+| | |____recipes-organized.json
+| | |____recipes-index.json
+| | |____products.json
+| | |____products.d.ts
+| |____assets
+| | |____react.svg
+| |____pages
+| | |____Calculator
+| | | |____Calculator.tsx
+| | | |____index.ts
+| | | |____CalculatorResults.tsx
+| | | |____EmptyState.tsx
+| | | |____CalculatorSearch.tsx
+| | |____ErrorPage.tsx
+| | |____Factories.tsx
+| |____dataOld
+| | |____machines.json
+| | |____items.json
+| | |____resources.json
+| | |_____docs.json
+| | |____recipedata.json
