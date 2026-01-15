@@ -1,10 +1,10 @@
-import type { ProductSchema } from '@/types';
+import type { Product } from '@/types';
 import getProductImagePath from '@/utils/imageHelper';
 import { ImageWithFallback } from '@/components/ui/ImageWithFallback';
 
 interface ProductTileProps {
-  product: ProductSchema;
-  onClick: (product: ProductSchema) => void;
+  product: Product;
+  onClick: (product: Product) => void;
   isSelected?: boolean;
   size?: 64 | 256;
 }

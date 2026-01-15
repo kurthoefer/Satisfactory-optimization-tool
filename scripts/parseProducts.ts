@@ -6,7 +6,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { slugify } from '../src/utils/slugify.js';
+import { slugify } from '../src/utils/slugify.ts';
 
 // Schemas
 interface GameItemSchema {

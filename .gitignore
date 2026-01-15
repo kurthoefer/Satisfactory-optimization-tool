@@ -25,7 +25,4 @@ dist-ssr
 
 # Private
 notes.md
-.env
-
-# Local dev only
 public/images/items/
