@@ -1,9 +1,10 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import allProducts from '@/data/products-flat.json';
-import type { ProductSchema } from '@/types';
+import type { Product } from '@/types';
 import getProductImagePath from '@/utils/imageHelper';
 import { ImageWithFallback } from '@/components/ui/ImageWithFallback';
+import { RecipeGraphContainer } from '@/components/RecipeGraphContainer';
 
 interface CalculatorResultsProps {
   productId: string;
@@ -17,11 +18,12 @@ export default function CalculatorResults({
 
   // Find the product from the productId
   const product = useMemo(() => {
-    return allProducts.find((p) => p.id === productId) as
-      | ProductSchema
-      | undefined;
+    return allProducts.find((p) => p.id === productId) as Product | undefined;
   }, [productId]);
-
+  console.log(
+    'this is what product looks like in CalculatorResults.tsx:',
+    product
+  );
   // Handle product not found
   // Should never happen ...
   if (!product) {
@@ -94,6 +96,15 @@ export default function CalculatorResults({
         </div>
       </section>
 
+      <RecipeGraphContainer
+        targetProduct={product.className} // Or undefined for full graph
+      />
+
+      {/* 
+============================================================================
+probably won't use any of the following html
+============================================================================ */}
+
       {/* Production Rate Input */}
       <section className='bg-white rounded-lg shadow p-6 mb-6'>
         <h2 className='text-xl font-semibold mb-4'>Production Target</h2>
@@ -134,21 +145,6 @@ export default function CalculatorResults({
           </p>
           <p className='text-gray-400 text-sm mt-2'>
             Target: {targetRate} {product.name} per minute
-          </p>
-        </div>
-      </section>
-
-      {/* Production Chain Section */}
-      <section className='bg-white rounded-lg shadow p-6 mb-6'>
-        <h2 className='text-xl font-semibold mb-4'>Production Chain</h2>
-
-        {/* TODO: Replace with production tree visualization */}
-        <div className='border-2 border-dashed border-gray-300 rounded-lg p-12 text-center'>
-          <p className='text-gray-500 text-lg mb-2'>
-            Production tree will appear here
-          </p>
-          <p className='text-gray-400 text-sm'>
-            Visualize ingredient dependencies and machine requirements
           </p>
         </div>
       </section>

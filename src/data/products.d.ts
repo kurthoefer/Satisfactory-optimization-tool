@@ -1,13 +1,13 @@
 // Type declarations for product JSON imports (necessary for ts to interact with JSON correctly)
 
-import type { ProductSchema, ProductsByCategorySchema } from '@/types';
+import type { Product, ProductsByCategory } from '@/types';
 
 declare module '@/data/products.json' {
-  const products: ProductsByCategorySchema;
+  const products: ProductsByCategory;
   export default products;
 }
 
 declare module '@/data/products-flat.json' {
-  const products: ProductSchema[];
+  const products: Product[];
   export default products;
 }

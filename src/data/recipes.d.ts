@@ -1,14 +1,14 @@
 // Type declarations for recipe JSON imports (necessary for ts to interact with JSON correctly)
 
-import type { RecipeSchema, RecipesOrganizedSchema } from '@/types';
+import type { Recipe, RecipesOrganized } from '@/types';
 
 declare module '@/data/recipes.json' {
-  const recipes: RecipeSchema[];
+  const recipes: Recipe[];
   export default recipes;
 }
 
 declare module '@/data/recipes-organized.json' {
-  const organized: RecipesOrganizedSchema;
+  const organized: RecipesOrganized;
   export default organized;
 }
 

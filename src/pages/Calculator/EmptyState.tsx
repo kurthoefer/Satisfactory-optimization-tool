@@ -39,7 +39,7 @@ export default function EmptyState() {
 
       {/* Quick Access Buttons */}
       <section>
-        <h3 className='text-lg font-semibold text-gray-700 mb-4 text-center'>
+        <h3 className='text-lg font-semibold text-gray-600 mb-4 text-center'>
           Popular Items
         </h3>
         <div className='grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto'>
@@ -59,7 +59,7 @@ export default function EmptyState() {
             description='Basic building block'
           />
           <QuickAccessButton
-            onClick={() => navigate('/calculate/concrete')}
+            onClick={() => navigate('/calculate/cement')}
             title='Concrete'
             description='Foundation material'
           />
@@ -111,10 +111,10 @@ function QuickAccessButton({
       onClick={onClick}
       className='p-6 bg-white rounded-lg shadow hover:shadow-md transition-all text-left border-2 border-transparent hover:border-blue-200 group'
     >
-      <div className='font-semibold text-gray-900 mb-1 group-hover:text-blue-600 transition-colors'>
+      <div className='font-semibold text-gray-700 mb-1 group-hover:text-blue-600 transition-colors'>
         {title}
       </div>
-      <div className='text-sm text-gray-500'>{description}</div>
+      <div className='text-sm text-gray-600'>{description}</div>
     </button>
   );
 }

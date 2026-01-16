@@ -285,7 +285,7 @@ function organizeRecipes(recipes: Recipe[]): RecipesOrganized {
   const byProduct: { [className: string]: Recipe[] } = {};
   const byIngredient: { [className: string]: Recipe[] } = {};
   const byMachine: { [machine: string]: Recipe[] } = {};
-  const alternates: RecipeSchema[] = [];
+  const alternates: Recipe[] = [];
 
   recipes.forEach((recipe) => {
     // Index by product

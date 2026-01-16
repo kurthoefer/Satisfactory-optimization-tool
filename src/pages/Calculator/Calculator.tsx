@@ -6,14 +6,14 @@
 import productsData from '@/data/products.json';
 import { useParams } from 'react-router-dom';
 import { useState } from 'react';
-import type { ProductsByCategorySchema } from '@/types';
+import type { ProductsByCategory } from '@/types';
 import CalculatorSearch from './CalculatorSearch';
 import CalculatorResults from './CalculatorResults';
 import EmptyState from './EmptyState';
 
 export default function Calculator() {
   const { productId } = useParams<{ productId: string }>();
-  const [productsByCategory] = useState<ProductsByCategorySchema>(productsData);
+  const [productsByCategory] = useState<ProductsByCategory>(productsData);
 
   console.log('check out the productId inside of Calculator.tsx:', productId);
   if (!productsByCategory) {
