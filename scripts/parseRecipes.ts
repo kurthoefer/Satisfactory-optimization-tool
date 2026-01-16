@@ -1,7 +1,7 @@
 /**
  * parseRecipes.ts
  *
- * Parses _Docs.json to extract all Satisfactory recipes.
+ * Parses docs.json to extract all Satisfactory recipes.
  * Run with: ts-node scripts/parseRecipes.ts
  * or: npx tsx scripts/parseRecipes.ts
  */
@@ -331,16 +331,16 @@ function organizeRecipes(recipes: Recipe[]): RecipesOrganized {
 
 // Main execution
 async function main() {
-  console.log('Parsing Satisfactory recipes from _Docs.json...\n');
+  console.log('Parsing Satisfactory recipes from docs.json...\n');
 
   // Paths
-  const docsPath = path.join(process.cwd(), '_Docs.json');
+  const docsPath = path.join(process.cwd(), 'docs.json');
   const outputDir = path.join(process.cwd(), 'src', 'data');
 
-  // Check if _Docs.json exists
+  // Check if docs.json exists
   if (!fs.existsSync(docsPath)) {
-    console.error('❌ Error: _Docs.json not found in project root');
-    console.error('   Please place _Docs.json in the root directory');
+    console.error('❌ Error: docs.json not found in project root');
+    console.error('   Please place docs.json in the root directory');
     process.exit(1);
   }
 

@@ -27,3 +27,11 @@ dist-ssr
 notes.md
 public/images/items/
 comboAnalyzer.ts
+project_structure.txt
+
+# Generated
+src/data/products-flat.json
+src/data/products.json
+src/data/recipes.json
+src/data/recipes-index.json
+src/data/recipes-organized.json
