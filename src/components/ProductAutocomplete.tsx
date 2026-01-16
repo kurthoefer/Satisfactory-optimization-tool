@@ -1,14 +1,52 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { ProductsByCategorySchema, ProductSchema } from '@/types';
+import type { ProductsByCategory, Product } from '@/types';
 import { Input } from './ui/Input';
 import { Dropdown } from './ui/Dropdown';
 import { CategoryHeader } from './ui/CategoryHeader';
 import { ProductGrid } from './ui/ProductGrid';
 import { ProductTile } from './ui/ProductTile';
+// import { buildRecipeTree } from '@/utils/recipeTreeBuilder';
+
+//! testing
+
+import {
+  analyzeProduct,
+  printAnalysis,
+  TEST_PRODUCTS,
+} from '@/utils/comboAnalyzer';
+
+// Test a simple product
+const rotorAnalysis = analyzeProduct('Desc_Rotor_C');
+printAnalysis(rotorAnalysis);
+
+// Test all example products
+Object.values(TEST_PRODUCTS)
+  .flat()
+  .forEach((className) => {
+    const analysis = analyzeProduct(className);
+    if (analysis) printAnalysis(analysis);
+  });
+
+//! testing
+
+import { buildCondensationGraph } from '@/utils/condensationGraph';
+
+// Test Rotor subgraph
+const rotorGraph = buildCondensationGraph('Desc_Rotor_C');
+console.log('🔬 Rotor Condensation Graph:');
+console.log('Stats:', rotorGraph.stats);
+console.log('Nodes:', rotorGraph.nodes);
+console.log('Edges:', rotorGraph.edges);
+
+// Test full graph (might be big!)
+const fullGraph = buildCondensationGraph();
+console.log('\n📊 Full Graph Stats:', fullGraph.stats);
+
+//! testing end
 
 interface ProductAutocompleteProps {
-  productsByCategory: ProductsByCategorySchema;
+  productsByCategory: ProductsByCategory;
 }
 
 export default function ProductAutocomplete({
@@ -30,7 +68,7 @@ export default function ProductAutocomplete({
       }
       return acc;
     },
-    {} as ProductsByCategorySchema
+    {} as ProductsByCategory
   );
 
   // Close dropdown when clicking outside
@@ -47,7 +85,7 @@ export default function ProductAutocomplete({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleProductSelect = (product: ProductSchema) => {
+  const handleProductSelect = (product: Product) => {
     navigate(`/calculate/${product.id}`);
     setIsOpen(false);
   };

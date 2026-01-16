@@ -1,8 +1,8 @@
-import type { ProductsByCategorySchema } from '@/types';
+import type { ProductsByCategory } from '@/types';
 import ProductAutocomplete from '@/components/ProductAutocomplete';
 
 interface CalculatorSearchProps {
-  productsByCategory: ProductsByCategorySchema;
+  productsByCategory: ProductsByCategory;
 }
 
 export default function CalculatorSearch({

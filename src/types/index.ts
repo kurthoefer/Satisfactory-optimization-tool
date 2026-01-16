@@ -79,6 +79,18 @@ export interface RecipesOrganized {
 // TREE VISUALIZATION TYPES
 // ============================================================================
 
+export interface RecipeOption {
+  id: string;
+  displayName: string;
+  machine: string;
+  isAlternate: boolean;
+  ingredients: {
+    className: string;
+    name: string;
+    amount: number;
+  }[];
+}
+
 export interface TreeNode {
   name: string; // Display name (e.g., "Iron Ingot")
   className: string; // Product className (e.g., "Desc_IronIngot_C")
@@ -86,4 +98,10 @@ export interface TreeNode {
   recipes?: string[]; // Recipe IDs that produce this product
   isCircular?: boolean; // Whether this item is part of circular dependency
   depth: number; // Depth in the tree (0 = root)
+
+  // D3 Visualization fields
+  recipeOptions?: RecipeOption[]; // Full recipe details for selection
+  selectedRecipe?: string; // Currently selected recipe ID
+  decisionWeight?: number; // Number of recipe choices (1-5+)
+  significance?: 'critical' | 'moderate' | 'minor'; // Decision importance
 }

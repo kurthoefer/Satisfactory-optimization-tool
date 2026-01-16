@@ -26,3 +26,4 @@ dist-ssr
 # Private
 notes.md
 public/images/items/
+comboAnalyzer.ts
