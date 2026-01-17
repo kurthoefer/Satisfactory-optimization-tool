@@ -22,8 +22,18 @@ export default function CalculatorResults({
   }, [productId]);
   console.log(
     'this is what product looks like in CalculatorResults.tsx:',
-    product
+    product,
   );
+  console.log('the moment product.className is needed:', product.className);
+  console.log('CDN_URL from imageHelper:', import.meta.env.VITE_CDN_URL);
+  if (product) {
+    console.log(
+      'Image path for',
+      product.name,
+      ':',
+      getProductImagePath(product.className, 256),
+    );
+  }
   // Handle product not found
   // Should never happen ...
   if (!product) {
