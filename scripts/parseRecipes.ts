@@ -331,10 +331,10 @@ function organizeRecipes(recipes: Recipe[]): RecipesOrganized {
 
 // Main execution
 async function main() {
-  console.log('Parsing Satisfactory recipes from docs.json...\n');
+  console.log('Parsing Satisfactory recipes from _docs.json...\n');
 
   // Paths
-  const docsPath = path.join(process.cwd(), 'docs.json');
+  const docsPath = path.join(process.cwd(), '_docs.json');
   const outputDir = path.join(process.cwd(), 'src', 'data');
 
   // Check if docs.json exists
