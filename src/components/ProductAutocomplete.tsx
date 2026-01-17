@@ -8,40 +8,40 @@ import { ProductGrid } from './ui/ProductGrid';
 import { ProductTile } from './ui/ProductTile';
 // import { buildRecipeTree } from '@/utils/recipeTreeBuilder';
 
-//! testing
+// //! testing
 
-import {
-  analyzeProduct,
-  printAnalysis,
-  TEST_PRODUCTS,
-} from '@/utils/comboAnalyzer';
+// import {
+//   analyzeProduct,
+//   printAnalysis,
+//   TEST_PRODUCTS,
+// } from '@/utils/comboAnalyzer';
 
-// Test a simple product
-const rotorAnalysis = analyzeProduct('Desc_Rotor_C');
-printAnalysis(rotorAnalysis);
+// // Test a simple product
+// const rotorAnalysis = analyzeProduct('Desc_Rotor_C');
+// printAnalysis(rotorAnalysis);
 
-// Test all example products
-Object.values(TEST_PRODUCTS)
-  .flat()
-  .forEach((className) => {
-    const analysis = analyzeProduct(className);
-    if (analysis) printAnalysis(analysis);
-  });
+// // Test all example products
+// Object.values(TEST_PRODUCTS)
+//   .flat()
+//   .forEach((className) => {
+//     const analysis = analyzeProduct(className);
+//     if (analysis) printAnalysis(analysis);
+//   });
 
-//! testing
+// //! testing
 
-import { buildCondensationGraph } from '@/utils/condensationGraph';
+// import { buildCondensationGraph } from '@/utils/condensationGraph';
 
-// Test Rotor subgraph
-const rotorGraph = buildCondensationGraph('Desc_Rotor_C');
-console.log('🔬 Rotor Condensation Graph:');
-console.log('Stats:', rotorGraph.stats);
-console.log('Nodes:', rotorGraph.nodes);
-console.log('Edges:', rotorGraph.edges);
+// // Test Rotor subgraph
+// const rotorGraph = buildCondensationGraph('Desc_Rotor_C');
+// console.log('🔬 Rotor Condensation Graph:');
+// console.log('Stats:', rotorGraph.stats);
+// console.log('Nodes:', rotorGraph.nodes);
+// console.log('Edges:', rotorGraph.edges);
 
-// Test full graph (might be big!)
-const fullGraph = buildCondensationGraph();
-console.log('\n📊 Full Graph Stats:', fullGraph.stats);
+// // Test full graph (might be big!)
+// const fullGraph = buildCondensationGraph();
+// console.log('\n📊 Full Graph Stats:', fullGraph.stats);
 
 //! testing end
 
