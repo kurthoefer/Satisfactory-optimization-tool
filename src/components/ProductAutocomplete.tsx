@@ -6,44 +6,7 @@ import { Dropdown } from './ui/Dropdown';
 import { CategoryHeader } from './ui/CategoryHeader';
 import { ProductGrid } from './ui/ProductGrid';
 import { ProductTile } from './ui/ProductTile';
-// import { buildRecipeTree } from '@/utils/recipeTreeBuilder';
-
-// //! testing
-
-// import {
-//   analyzeProduct,
-//   printAnalysis,
-//   TEST_PRODUCTS,
-// } from '@/utils/comboAnalyzer';
-
-// // Test a simple product
-// const rotorAnalysis = analyzeProduct('Desc_Rotor_C');
-// printAnalysis(rotorAnalysis);
-
-// // Test all example products
-// Object.values(TEST_PRODUCTS)
-//   .flat()
-//   .forEach((className) => {
-//     const analysis = analyzeProduct(className);
-//     if (analysis) printAnalysis(analysis);
-//   });
-
-// //! testing
-
-// import { buildCondensationGraph } from '@/utils/condensationGraph';
-
-// // Test Rotor subgraph
-// const rotorGraph = buildCondensationGraph('Desc_Rotor_C');
-// console.log('🔬 Rotor Condensation Graph:');
-// console.log('Stats:', rotorGraph.stats);
-// console.log('Nodes:', rotorGraph.nodes);
-// console.log('Edges:', rotorGraph.edges);
-
-// // Test full graph (might be big!)
-// const fullGraph = buildCondensationGraph();
-// console.log('\n📊 Full Graph Stats:', fullGraph.stats);
-
-//! testing end
+import { useDropdownNavigation } from '@/hooks/useDropdownNavigation';
 
 interface ProductAutocompleteProps {
   productsByCategory: ProductsByCategory;
@@ -55,21 +18,40 @@ export default function ProductAutocomplete({
   const [searchTerm, setSearchTerm] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
   // Filter products by search term
   const filteredProducts = Object.entries(productsByCategory).reduce(
     (acc, [category, products]) => {
       const filtered = products.filter((p) =>
-        p.name.toLowerCase().includes(searchTerm.toLowerCase())
+        p.name.toLowerCase().includes(searchTerm.toLowerCase()),
       );
       if (filtered.length > 0) {
         acc[category] = filtered;
       }
       return acc;
     },
-    {} as ProductsByCategory
+    {} as ProductsByCategory,
   );
+
+  const handleProductSelect = (product: Product) => {
+    navigate(`/calculate/${product.id}`);
+    setIsOpen(false);
+    setSearchTerm('');
+  };
+
+  const handleClose = () => {
+    setIsOpen(false);
+    inputRef.current?.focus();
+  };
+
+  const navigation = useDropdownNavigation({
+    isOpen,
+    filteredProducts,
+    onSelect: handleProductSelect,
+    onClose: handleClose,
+  });
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -85,38 +67,61 @@ export default function ProductAutocomplete({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleProductSelect = (product: Product) => {
-    navigate(`/calculate/${product.id}`);
-    setIsOpen(false);
-  };
-
   return (
     <div
       ref={containerRef}
       className='relative'
     >
       <Input
+        ref={inputRef}
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
         onFocus={() => setIsOpen(true)}
+        onKeyDown={navigation.handleInputKeyDown}
         placeholder='Search for a product...'
+        role='combobox'
+        aria-expanded={isOpen}
+        aria-controls='product-dropdown'
+        aria-autocomplete='list'
       />
 
       <Dropdown isOpen={isOpen}>
-        {Object.entries(filteredProducts).map(([category, products]) => (
-          <div key={category}>
-            <CategoryHeader>{category}</CategoryHeader>
-            <ProductGrid>
-              {products.map((product) => (
-                <ProductTile
-                  key={product.className}
-                  product={product}
-                  onClick={handleProductSelect}
-                />
-              ))}
-            </ProductGrid>
-          </div>
-        ))}
+        <div
+          id='product-dropdown'
+          role='listbox'
+        >
+          {navigation.gridSections.map((section) => (
+            <div key={section.category}>
+              <CategoryHeader>{section.category}</CategoryHeader>
+              <ProductGrid
+                ref={(el) => {
+                  navigation.sectionRefs.current[section.category] = el;
+                }}
+              >
+                {section.items.map((product, itemIdx) => {
+                  const globalIndex = section.startIndex + itemIdx;
+                  const isFocused = navigation.focusedIndex === globalIndex;
+
+                  return (
+                    <ProductTile
+                      key={product.className}
+                      ref={(el) => {
+                        navigation.itemRefs.current[globalIndex] = el;
+                      }}
+                      product={product}
+                      onClick={handleProductSelect}
+                      onKeyDown={(e) =>
+                        navigation.handleItemKeyDown(e, globalIndex)
+                      }
+                      tabIndex={-1}
+                      isSelected={isFocused}
+                    />
+                  );
+                })}
+              </ProductGrid>
+            </div>
+          ))}
+        </div>
       </Dropdown>
     </div>
   );
