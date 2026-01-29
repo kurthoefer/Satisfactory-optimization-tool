@@ -92,7 +92,7 @@ export function RecipeGraphVisualization({
         d3
           .forceLink(graph.edges)
           .id((d: any) => d.id)
-          .distance(150)
+          .distance(150),
       )
       .force('charge', d3.forceManyBody().strength(-500))
       .force('center', d3.forceCenter(width / 2, height / 2))
@@ -153,7 +153,7 @@ export function RecipeGraphVisualization({
           .drag<any, CondensationNode>()
           .on('start', dragStarted)
           .on('drag', dragged)
-          .on('end', dragEnded)
+          .on('end', dragEnded),
       );
 
     // Node circles

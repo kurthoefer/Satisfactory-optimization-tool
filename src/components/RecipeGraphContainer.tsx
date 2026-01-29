@@ -1,23 +1,25 @@
 import { useMemo, useState } from 'react';
 import { buildCondensationGraph } from '@/utils/condensationGraph';
 import { RecipeGraphVisualization } from './RecipeGraphVisualization';
-import type {
-  CondensationNode,
-  CondensationEdge,
+import {
+  type CondensationNode,
+  type CondensationEdge,
 } from '@/utils/condensationGraph';
 
 interface RecipeGraphContainerProps {
   targetProduct?: string; // Optional: focus on specific product
 }
 
+let decomposeSize = 2;
+
 export function RecipeGraphContainer({
   targetProduct,
 }: RecipeGraphContainerProps) {
   const [selectedNode, setSelectedNode] = useState<CondensationNode | null>(
-    null
+    null,
   );
   const [selectedEdge, setSelectedEdge] = useState<CondensationEdge | null>(
-    null
+    null,
   );
 
   // Build graph (memoized to prevent rebuilding on every render)
@@ -25,9 +27,12 @@ export function RecipeGraphContainer({
     console.log(
       `🔨 Building condensation graph${
         targetProduct ? ` for ${targetProduct}` : ' (full)'
-      }`
+      }`,
     );
-    return buildCondensationGraph(targetProduct);
+    return buildCondensationGraph(targetProduct, {
+      decomposeMinSize: decomposeSize,
+      filterBaseResources: true,
+    });
   }, [targetProduct]);
 
   const handleNodeClick = (node: CondensationNode) => {
@@ -117,7 +122,7 @@ export function RecipeGraphContainer({
                       // TODO: Switch to tree view for deep dive **maybe**
                       console.log(
                         'Show tree view for:',
-                        selectedNode.className
+                        selectedNode.className,
                       );
                     }}
                     className='mt-2 px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600'
