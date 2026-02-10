@@ -1,3 +1,4 @@
+// Tailwind Practice
 import { useRouteError, isRouteErrorResponse, Link } from 'react-router-dom';
 
 export default function ErrorPage() {

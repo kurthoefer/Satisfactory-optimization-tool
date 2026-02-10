@@ -53,7 +53,7 @@ export interface Recipe {
 }
 
 // ============================================================================
-// CIRCULAR DEPENDENCY ANALYSIS
+// ORGANIZED RECIPE DATA STRUCTURE
 // ============================================================================
 
 export interface CircularRelationships {
@@ -61,10 +61,6 @@ export interface CircularRelationships {
   circularItems: string[];
   circularRecipes: string[];
 }
-
-// ============================================================================
-// ORGANIZED RECIPE DATA STRUCTURE
-// ============================================================================
 
 export interface RecipesOrganized {
   all: Recipe[];
@@ -76,32 +72,76 @@ export interface RecipesOrganized {
 }
 
 // ============================================================================
-// TREE VISUALIZATION TYPES
+// TOPOLOGY & GRAPH TYPES
 // ============================================================================
 
-export interface RecipeOption {
-  id: string;
-  displayName: string;
-  machine: string;
-  isAlternate: boolean;
-  ingredients: {
-    className: string;
-    name: string;
-    amount: number;
-  }[];
+export interface TopologicalEdge {
+  sourceId: string; // "iron-ingot"
+  targetId: string; // "recipe-iron-plate"
+  throughput: number; // (Amount / Recipe.Time) * 60 (Visual Thickness)
+  weight: number; // (Recipe.Time / Amount)  [Normalized] (Spring Length)
+  persistence: number; // Stability metric (Visibility / LOD)
 }
 
-export interface TreeNode {
-  name: string; // Display name (e.g., "Iron Ingot")
-  className: string; // Product className (e.g., "Desc_IronIngot_C")
-  children?: TreeNode[]; // Child nodes (ingredients)
-  recipes?: string[]; // Recipe IDs that produce this product
-  isCircular?: boolean; // Whether this item is part of circular dependency
-  depth: number; // Depth in the tree (0 = root)
+export interface TopologicalManifest {
+  metadata: {
+    generatedAt: string;
+    edgeCount: number;
+    sccCount: number;
+  };
+  edges: TopologicalEdge[]; // The metric space
+  sccs: string[][]; // The loops
+  circularItems: string[]; // Fast lookup for loop participants
+}
 
-  // D3 Visualization fields
-  recipeOptions?: RecipeOption[]; // Full recipe details for selection
-  selectedRecipe?: string; // Currently selected recipe ID
-  decisionWeight?: number; // Number of recipe choices (1-5+)
-  significance?: 'critical' | 'moderate' | 'minor'; // Decision importance
+// ============================================================================
+// D3 INTERFACE
+// ============================================================================
+
+// 1. The Standard D3 Node Interface (Mutable struct, no nesting)
+interface D3SimulationNode {
+  index?: number;
+  x?: number; // Current X position
+  y?: number; // Current Y position
+  vx?: number; // X Velocity
+  vy?: number; // Y Velocity
+  fx?: number | null; // Fixed X (User drag state)
+  fy?: number | null; // Fixed Y (User drag state)
+}
+
+/**
+ * The Actual Node used in the React Component.
+ */
+export interface SimulationNode extends D3SimulationNode {
+  id: string; // Required for D3 linkage
+
+  // COMPOSITION: The Static Fact
+  // Wrapped in 'payload' so D3 never touches the original data.
+  payload: {
+    type: 'product' | 'recipe' | 'scc';
+    data: Product | Recipe | null;
+  };
+
+  // KINETIC STATE: The "Heat"
+  // Calculated at runtime based on the specific neighbors in this view.
+  stressScore: number; // 0.0 to 1.0 (Color Heatmap)
+  degree: number; // Number of active connections (Size)
+}
+
+/**
+ * The Actual Link used in the D3 Force Graph.
+ * It extends the static edge with D3's object references.
+ */
+export interface KineticLink extends Omit<
+  TopologicalEdge,
+  'sourceId' | 'targetId'
+> {
+  // D3 replaces string IDs with actual Node object references after initialization
+  source: string | SimulationNode;
+  target: string | SimulationNode;
+
+  // We keep the static physics values for the simulation forces
+  throughput: number;
+  weight: number;
+  persistence: number;
 }

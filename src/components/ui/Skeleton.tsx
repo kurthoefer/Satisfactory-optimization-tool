@@ -14,8 +14,8 @@ export const Skeleton: React.FC<SkeletonProps> = ({ className, ...props }) => {
 };
 
 /*
-Text Loading: When you eventually fetch product details from a backend/API,
-the text might lag behind. You can simply use:
+Text Loading: When we eventually fetch product details from a backend/API,
+the text might lag behind. we can simply use:
             <Skeleton className="h-4 w-[250px]" />
 to mimic a title bar.
 

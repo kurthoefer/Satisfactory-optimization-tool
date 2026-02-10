@@ -1,18 +1,8 @@
-/**
- * Parses docs.json to extract all Satisfactory products organized by category.
- * Run with: ts-node scripts/parseProducts.ts
- * or: npx tsx scripts/parseProducts.ts
- */
+import { slugify } from '../../src/utils/slugify'; // Adjust path if needed
+import type { Product, ProductsByCategory } from '../../src/types';
 
-// ! Deprecated.
-
-import * as fs from 'fs';
-import * as path from 'path';
-import { slugify } from '../src/utils/slugify.ts';
-import type { Product, ProductsByCategory } from '../src/types/index.ts';
-
-// Schemas
-interface GameItemSchema {
+// Internal Schema for Raw Data
+export interface GameItemSchema {
   ClassName: string;
   mDisplayName?: string;
   mDescription?: string;
@@ -20,31 +10,14 @@ interface GameItemSchema {
   mStackSize?: string;
   mEnergyValue?: string;
   mRadioactiveDecay?: string;
+  NativeClass: string;
 }
 
-interface GameSectionSchema {
+export interface GameSectionSchema {
   NativeClass: string;
   Classes?: GameItemSchema[];
 }
 
-// interface ProductSchema {
-//   id: string;
-//   slug: string;
-//   name: string;
-//   className: string;
-//   description: string;
-//   form: string;
-//   stackSize: string;
-//   energyValue: number;
-//   radioactive: number;
-//   category: string;
-// }
-
-// interface ProductsByCategorySchema {
-//   [category: string]: ProductSchema[];
-// }
-
-// Category determination based on ClassName patterns and NativeClass
 function categorizeItem(
   item: GameItemSchema,
   nativeClass: string,
@@ -199,22 +172,20 @@ function categorizeItem(
     return 'Alien';
   }
 
-  return 'Other';
+  return 'Other'; // Fallback
 }
 
-// Extract products from game data
-function extractProducts(docsData: GameSectionSchema[]): ProductsByCategory {
+export function extractProducts(
+  docsData: GameSectionSchema[],
+): ProductsByCategory {
   const productsByCategory: ProductsByCategory = {};
 
   docsData.forEach((section) => {
     const nativeClass = section.NativeClass;
-
-    // Only care about descriptors (actual items)
-    if (!nativeClass || !nativeClass.includes('Descriptor')) return;
+    if (!nativeClass || !nativeClass.includes('Descriptor')) return; //items with "descriptions"
 
     section.Classes?.forEach((item) => {
       const category = categorizeItem(item, nativeClass);
-
       if (!category) return;
 
       if (!productsByCategory[category]) {
@@ -223,6 +194,7 @@ function extractProducts(docsData: GameSectionSchema[]): ProductsByCategory {
 
       const displayName = item.mDisplayName || '';
 
+      // Map to Product[]
       const product: Product = {
         id: item.ClassName.toLowerCase()
           .replace(/_c$/, '')
@@ -242,87 +214,10 @@ function extractProducts(docsData: GameSectionSchema[]): ProductsByCategory {
     });
   });
 
-  // Sort each category alphabetically
+  // Sort alphabetically
   Object.keys(productsByCategory).forEach((category) => {
     productsByCategory[category].sort((a, b) => a.name.localeCompare(b.name));
   });
 
   return productsByCategory;
 }
-
-// Main execution
-async function main() {
-  console.log('Parsing Satisfactory products from _docs.json...\n');
-
-  // Paths
-  const docsPath = path.join(process.cwd(), '_docs.json');
-  const outputDir = path.join(process.cwd(), 'src', 'data');
-
-  // Check if docs.json exists
-  if (!fs.existsSync(docsPath)) {
-    console.error('❌ Error: docs.json not found in project root');
-    console.error('   Please place docs.json in the root directory');
-    process.exit(1);
-  }
-
-  // Load game data
-  const docsData: GameSectionSchema[] = JSON.parse(
-    fs.readFileSync(docsPath, 'utf-8'),
-  );
-
-  // Extract products
-  const products = extractProducts(docsData);
-
-  // Statistics
-  console.log('Extracted products by category:');
-  Object.keys(products)
-    .sort()
-    .forEach((category) => {
-      console.log(`  ${category}: ${products[category].length} items`);
-    });
-
-  const totalItems = Object.values(products).reduce(
-    (sum, arr) => sum + arr.length,
-    0,
-  );
-  console.log(
-    `\nTotal: ${totalItems} items across ${
-      Object.keys(products).length
-    } categories\n`,
-  );
-
-  // Create output directory if needed
-  if (!fs.existsSync(outputDir)) {
-    fs.mkdirSync(outputDir, { recursive: true });
-  }
-
-  // Save products.json (organized by category)
-  const productsPath = path.join(outputDir, 'products.json');
-  fs.writeFileSync(productsPath, JSON.stringify(products, null, 2));
-  console.log(`✅ Saved to ${productsPath}`);
-
-  // Save products-flat.json (flat array)
-  const flatProducts: Product[] = [];
-  Object.values(products).forEach((categoryProducts) => {
-    flatProducts.push(...categoryProducts);
-  });
-
-  const flatPath = path.join(outputDir, 'products-flat.json');
-  fs.writeFileSync(flatPath, JSON.stringify(flatProducts, null, 2));
-  console.log(`✅ Saved to ${flatPath}`);
-
-  console.log('\n✨ Done! Products parsed successfully.');
-}
-
-// Run if executed directly
-// Check if this file is being run directly (ES module way)
-const isMainModule = import.meta.url === `file://${process.argv[1]}`;
-
-if (isMainModule) {
-  main().catch((error) => {
-    console.error('Error parsing products:', error);
-    process.exit(1);
-  });
-}
-
-export { extractProducts };

@@ -1,171 +1,130 @@
+/**
+ * RecipeGraphContainer Component
+ * Manages graph building with user-configurable settings
+ */
+
 import { useMemo, useState } from 'react';
+import recipesOrganizedData from '@/data/recipes-organized.json';
+import productsData from '@/data/products-flat.json';
 import { buildCondensationGraph } from '@/utils/condensationGraph';
 import { RecipeGraphVisualization } from './RecipeGraphVisualization';
-import {
-  type CondensationNode,
-  type CondensationEdge,
-} from '@/utils/condensationGraph';
+import { SugiyamaGraphVisualization } from './Sugiyamagraphvisualization';
+import { GraphControls } from './GraphControls';
+import type { RecipesOrganized, Product } from '@/types';
+
+// TODO :: Is this a weird place for this to happen? -- yes orchestration should be in "Pages/"
+const recipesOrganized = recipesOrganizedData as RecipesOrganized;
+const products = productsData as Product[];
 
 interface RecipeGraphContainerProps {
-  targetProduct?: string; // Optional: focus on specific product
+  targetProduct?: string;
 }
-
-let decomposeSize = 2;
 
 export function RecipeGraphContainer({
   targetProduct,
 }: RecipeGraphContainerProps) {
-  const [selectedNode, setSelectedNode] = useState<CondensationNode | null>(
-    null,
+  // State for graph settings
+  const [decomposeMinSize, setDecomposeMinSize] = useState<number | undefined>(
+    3,
   );
-  const [selectedEdge, setSelectedEdge] = useState<CondensationEdge | null>(
-    null,
-  );
+  const [filterBaseResources, setFilterBaseResources] = useState(true);
+  const [layoutType, setLayoutType] = useState<'force' | 'sugiyama'>('force');
+  const [collapsePackaging, setCollapsePackaging] = useState(false);
 
-  // Build graph (memoized to prevent rebuilding on every render)
+  // Build graph with lean logic
   const graph = useMemo(() => {
-    console.log(
-      `🔨 Building condensation graph${
-        targetProduct ? ` for ${targetProduct}` : ' (full)'
-      }`,
-    );
-    return buildCondensationGraph(targetProduct, {
-      decomposeMinSize: decomposeSize,
-      filterBaseResources: true,
+    return buildCondensationGraph(recipesOrganized.byProduct, products, {
+      targetProduct,
+      decomposeMinSize,
+      filterBaseResources,
+      collapsePackaging,
     });
-  }, [targetProduct]);
-
-  const handleNodeClick = (node: CondensationNode) => {
-    console.log('Node clicked:', node);
-    setSelectedNode(node);
-    setSelectedEdge(null);
-  };
-
-  const handleEdgeClick = (edge: CondensationEdge) => {
-    console.log('Edge clicked:', edge);
-    setSelectedEdge(edge);
-    setSelectedNode(null);
-  };
+  }, [targetProduct, decomposeMinSize, filterBaseResources, collapsePackaging]);
 
   return (
-    <div className='flex flex-col gap-4'>
-      {/* Stats Header */}
-      <div className='bg-white p-4 rounded shadow border border-gray-200'>
-        <h2 className='text-xl font-bold mb-2'>
-          {targetProduct
-            ? 'Product Dependency Graph'
-            : 'Complete Recipe Network'}
-        </h2>
-        <div className='flex gap-6 text-sm text-gray-600'>
-          <span>
-            <strong>{graph.stats.totalNodes}</strong> nodes
-          </span>
-          <span>
-            <strong>{graph.stats.productNodes}</strong> products
-          </span>
-          <span>
-            <strong>{graph.stats.sccNodes}</strong> circular groups
-          </span>
-          <span>
-            <strong>{graph.stats.totalEdges}</strong> connections
-          </span>
+    <div className='flex gap-4 h-[600px]'>
+      <div className='flex-shrink-0 w-64 space-y-4'>
+        {/* Layout Type Selection */}
+        <div className='bg-white p-4 rounded-lg shadow-md border border-gray-300'>
+          <h3 className='font-bold text-sm text-gray-900 mb-3'>Layout Type</h3>
+          <div className='space-y-2'>
+            <label className='flex items-center gap-2'>
+              <input
+                type='radio'
+                value='force'
+                checked={layoutType === 'force'}
+                onChange={(e) => setLayoutType(e.target.value as any)}
+                className='accent-blue-600'
+              />
+              <span className='text-sm'>Force Directed</span>
+            </label>
+            <label className='flex items-center gap-2'>
+              <input
+                type='radio'
+                value='sugiyama'
+                checked={layoutType === 'sugiyama'}
+                onChange={(e) => setLayoutType(e.target.value as any)}
+                className='accent-blue-600'
+              />
+              <span className='text-sm'>Sugiyama (Hierarchical)</span>
+            </label>
+          </div>
         </div>
-      </div>
 
-      {/* Visualization */}
-      <div className='h-[800px] w-full'>
-        <RecipeGraphVisualization
-          graph={graph}
-          onNodeClick={handleNodeClick}
-          onEdgeClick={handleEdgeClick}
+        <GraphControls
+          decomposeMinSize={decomposeMinSize}
+          onDecomposeMinSizeChange={setDecomposeMinSize}
+          filterBaseResources={filterBaseResources}
+          onFilterBaseResourcesChange={setFilterBaseResources}
+          collapsePackaging={collapsePackaging}
+          onCollapsePackagingChange={setCollapsePackaging}
         />
       </div>
 
-      {/* Selection Panel */}
-      {(selectedNode || selectedEdge) && (
-        <div className='bg-white p-4 rounded shadow border border-gray-200'>
-          {selectedNode && (
-            <div>
-              <h3 className='font-bold text-lg mb-2'>
-                {selectedNode.type === 'scc'
-                  ? 'Circular Dependency Group'
-                  : selectedNode.name}
-              </h3>
+      <div className='flex-1 min-w-0'>
+        {layoutType === 'force' ? (
+          <RecipeGraphVisualization graph={graph} />
+        ) : (
+          <SugiyamaGraphVisualization graph={graph} />
+        )}
+      </div>
+    </div>
+  );
+}
 
-              {selectedNode.type === 'scc' ? (
-                <>
-                  <p className='text-sm text-gray-600 mb-2'>
-                    These products form a circular dependency (they depend on
-                    each other):
-                  </p>
-                  <ul className='list-disc list-inside space-y-1 text-sm'>
-                    {selectedNode.productNames?.map((name) => (
-                      <li key={name}>{name}</li>
-                    ))}
-                  </ul>
-                  <p className='text-sm text-gray-500 mt-2'>
-                    Total: {selectedNode.recipeCount} recipes across all
-                    products
-                  </p>
-                </>
-              ) : (
-                <>
-                  <p className='text-sm text-gray-600'>
-                    {selectedNode.recipeCount === 0
-                      ? 'Raw resource (no recipe needed)'
-                      : `${selectedNode.recipeCount} recipe${
-                          selectedNode.recipeCount !== 1 ? 's' : ''
-                        } available`}
-                  </p>
-                  <button
-                    onClick={() => {
-                      // TODO: Switch to tree view for deep dive **maybe**
-                      console.log(
-                        'Show tree view for:',
-                        selectedNode.className,
-                      );
-                    }}
-                    className='mt-2 px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600'
-                  >
-                    {`you have selected: ${selectedNode.className}, now what?`}
-                  </button>
-                </>
-              )}
-            </div>
-          )}
 
-          {selectedEdge && (
-            <div>
-              <h3 className='font-bold text-lg mb-2'>Connection</h3>
-              <p className='text-sm text-gray-600'>
-                {selectedEdge.recipes.length} recipe
-                {selectedEdge.recipes.length !== 1 ? 's' : ''} connect these
-                products
-              </p>
-              <ul className='list-disc list-inside space-y-1 text-sm mt-2'>
-                {selectedEdge.recipes.map((recipeId) => (
-                  <li
-                    key={recipeId}
-                    className='text-gray-700'
-                  >
-                    {recipeId}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+// --- UTILITIES (In a separate /utils file) ---
 
-          <button
-            onClick={() => {
-              setSelectedNode(null);
-              setSelectedEdge(null);
-            }}
-            className='mt-3 text-sm text-gray-500 hover:text-gray-700'
-          >
-            Close ✕
-          </button>
-        </div>
-      )}
+function applyFilters(data, filters) { ... }
+function contractSCCs(data) { ... } // Collapses nodes into a DAG
+function calculateLayout(dag) { ... } // D3 math lives here
+
+// --- REACT COMPONENT ---
+
+function VisualizationPage() {
+  const [rawData, setRawData] = useState([]);
+  const [filters, setFilters] = useState([]);
+
+  // STEP 1: Filter the data
+  const filteredData = useMemo(() => {
+    return applyFilters(rawData, filters);
+  }, [rawData, filters]);
+
+  // STEP 2: Process the DAG (SCC Collapse)
+  // DRY: This only reruns if the filtered output changes
+  const dagData = useMemo(() => {
+    return contractSCCs(filteredData);
+  }, [filteredData]);
+
+  // STEP 3: Final D3 Layout
+  const chartData = useMemo(() => {
+    return calculateLayout(dagData);
+  }, [dagData]);
+
+  return (
+    <div>
+      <Toolbox onFilterChange={setFilters} />
+      <D3Canvas data={chartData} />
     </div>
   );
 }

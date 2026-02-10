@@ -115,30 +115,8 @@ export default function CalculatorResults({
 probably won't use any of the following html
 ============================================================================ */}
 
-      {/* Production Rate Input */}
-      <section className='bg-white rounded-lg shadow p-6 mb-6'>
-        <h2 className='text-xl font-semibold mb-4'>Production Target</h2>
-        <div className='flex items-center gap-4'>
-          <label
-            htmlFor='target-rate'
-            className='text-gray-700 font-medium'
-          >
-            Target Rate:
-          </label>
-          <input
-            id='target-rate'
-            type='number'
-            value={targetRate}
-            onChange={(e) => setTargetRate(Number(e.target.value))}
-            className='px-4 py-2 border-2 border-gray-300 rounded-lg w-32 focus:border-blue-500 focus:outline-none'
-            min={1}
-          />
-          <span className='text-gray-600'>items per minute</span>
-        </div>
-      </section>
-
       {/* Recipe Options Section */}
-      <section className='bg-white rounded-lg shadow p-6 mb-6'>
+      <section className='bg-white rounded-lg shadow p-6 mb-6 mt-6'>
         <h2 className='text-xl font-semibold mb-4'>Recipe Options</h2>
 
         {/* TODO: Replace with actual recipe component */}

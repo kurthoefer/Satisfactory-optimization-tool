@@ -8,14 +8,13 @@
     "build": "npm run parse:all && tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "parse:products": "tsx scripts/parseProducts.ts",
-    "parse:recipes": "tsx scripts/parseRecipes.ts",
-    "parse:all": "tsx scripts/parseProducts.ts && tsx scripts/parseRecipes.ts"
+    "data:build": "tsx scripts/buildGameData.ts"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.17",
     "@types/d3": "^7.4.3",
     "d3": "^7.9.0",
+    "d3-dag": "^1.1.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-router-dom": "^7.9.4",
