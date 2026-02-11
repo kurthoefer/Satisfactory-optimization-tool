@@ -99,7 +99,7 @@ export interface TopologicalManifest {
 // ============================================================================
 
 // 1. The Standard D3 Node Interface (Mutable struct, no nesting)
-interface D3SimulationNode {
+interface D3GraphNode {
   index?: number;
   x?: number; // Current X position
   y?: number; // Current Y position
@@ -112,7 +112,7 @@ interface D3SimulationNode {
 /**
  * The Actual Node used in the React Component.
  */
-export interface SimulationNode extends D3SimulationNode {
+export interface GraphNode extends D3GraphNode {
   id: string; // Required for D3 linkage
 
   // COMPOSITION: The Static Fact
@@ -126,22 +126,28 @@ export interface SimulationNode extends D3SimulationNode {
   // Calculated at runtime based on the specific neighbors in this view.
   stressScore: number; // 0.0 to 1.0 (Color Heatmap)
   degree: number; // Number of active connections (Size)
+
+  // what production chain is the user asking for?
+  focus: boolean;
+
+  sccGroupId: number | null; // maybe just temporary
 }
 
 /**
  * The Actual Link used in the D3 Force Graph.
  * It extends the static edge with D3's object references.
  */
-export interface KineticLink extends Omit<
+export interface GraphEdge extends Omit<
   TopologicalEdge,
   'sourceId' | 'targetId'
 > {
   // D3 replaces string IDs with actual Node object references after initialization
-  source: string | SimulationNode;
-  target: string | SimulationNode;
+  source: string | GraphNode;
+  target: string | GraphNode;
 
   // We keep the static physics values for the simulation forces
   throughput: number;
   weight: number;
   persistence: number;
+  focus: boolean;
 }

@@ -1,7 +1,7 @@
 import { createBrowserRouter } from 'react-router-dom';
 import Layout from './components/Layout';
 import ErrorPage from './pages/ErrorPage';
-import Calculator from './pages/Calculator';
+import Visualization from './pages/Visualization';
 
 export const router = createBrowserRouter([
   {
@@ -11,18 +11,18 @@ export const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <Calculator />,
+        element: <Visualization />,
       },
       {
-        path: 'calculate',
+        path: 'Visualize',
         children: [
           {
             index: true,
-            element: <Calculator />, // /calculate (empty state)
+            element: <Visualization />, // /calculate (empty state)
           },
           {
             path: ':productId',
-            element: <Calculator />, // /calculate/ironplate (with results)
+            element: <Visualization />, // /calculate/ironplate (with results)
           },
         ],
       },

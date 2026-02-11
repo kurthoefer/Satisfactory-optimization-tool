@@ -1,5 +1,5 @@
-import { slugify } from '../../src/utils/slugify'; // Adjust path if needed
-import type { Product, ProductsByCategory } from '../../src/types';
+import { slugify } from '../../src/utils/slugify';
+import type { Product } from '../../src/types';
 
 // Internal Schema for Raw Data
 export interface GameItemSchema {
@@ -175,27 +175,24 @@ function categorizeItem(
   return 'Other'; // Fallback
 }
 
-export function extractProducts(
-  docsData: GameSectionSchema[],
-): ProductsByCategory {
-  const productsByCategory: ProductsByCategory = {};
+/**
+ * Extracts and categorizes products from raw game data.
+ * Returns a flat Product[] — runtime grouping is handled by indexes.ts.
+ */
+export function extractProducts(docsData: GameSectionSchema[]): Product[] {
+  const products: Product[] = [];
 
   docsData.forEach((section) => {
     const nativeClass = section.NativeClass;
-    if (!nativeClass || !nativeClass.includes('Descriptor')) return; //items with "descriptions"
+    if (!nativeClass || !nativeClass.includes('Descriptor')) return;
 
     section.Classes?.forEach((item) => {
       const category = categorizeItem(item, nativeClass);
       if (!category) return;
 
-      if (!productsByCategory[category]) {
-        productsByCategory[category] = [];
-      }
-
       const displayName = item.mDisplayName || '';
 
-      // Map to Product[]
-      const product: Product = {
+      products.push({
         id: item.ClassName.toLowerCase()
           .replace(/_c$/, '')
           .replace(/^desc_/, ''),
@@ -208,16 +205,12 @@ export function extractProducts(
         energyValue: parseFloat(item.mEnergyValue || '0'),
         radioactive: parseFloat(item.mRadioactiveDecay || '0'),
         category,
-      };
-
-      productsByCategory[category].push(product);
+      });
     });
   });
 
   // Sort alphabetically
-  Object.keys(productsByCategory).forEach((category) => {
-    productsByCategory[category].sort((a, b) => a.name.localeCompare(b.name));
-  });
+  products.sort((a, b) => a.name.localeCompare(b.name));
 
-  return productsByCategory;
+  return products;
 }

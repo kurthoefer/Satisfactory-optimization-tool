@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { ProductsByCategory, Product } from '@/types';
+import type { Product } from '@/types';
+import { productsByCategory } from '@/data/indexes';
 import { Input } from './ui/Input';
 import { Dropdown } from './ui/Dropdown';
 import { CategoryHeader } from './ui/CategoryHeader';
@@ -8,13 +9,7 @@ import { ProductGrid } from './ui/ProductGrid';
 import { ProductTile } from './ui/ProductTile';
 import { useDropdownNavigation } from '@/hooks/useDropdownNavigation';
 
-interface ProductAutocompleteProps {
-  productsByCategory: ProductsByCategory;
-}
-
-export default function ProductAutocomplete({
-  productsByCategory,
-}: ProductAutocompleteProps) {
+export default function ProductAutocomplete() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -32,11 +27,12 @@ export default function ProductAutocomplete({
       }
       return acc;
     },
-    {} as ProductsByCategory,
+    {} as Record<string, Product[]>,
   );
 
   const handleProductSelect = (product: Product) => {
-    navigate(`/calculate/${product.id}`);
+    //! Changed calculate to visulize, CRITICAL JUNCTION, ROUTER weak-point
+    navigate(`/visualize/${product.slug}`);
     setIsOpen(false);
     setSearchTerm('');
   };

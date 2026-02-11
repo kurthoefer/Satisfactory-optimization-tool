@@ -1,8 +1,16 @@
 /**
  * scripts/buildGameData.ts
- * * The Master Orchestration Script.
- * Transforms raw Satisfactory docs
- * * Usage: npx tsx scripts/buildGameData.ts
+ * The Master Orchestration Script.
+ * Transforms raw Satisfactory docs into runtime data files.
+ *
+ * Outputs (3 files):
+ *   products-flat.json  — All products with category field
+ *   recipes.json        — All recipes
+ *   topology.json       — Edge manifest with SCCs
+ *
+ * Runtime grouping/indexing is handled by src/data/indexes.ts
+ *
+ * Usage: npx tsx scripts/buildGameData.ts
  */
 
 import * as fs from 'fs';
@@ -35,7 +43,6 @@ async function main() {
     process.exit(1);
   }
 
-  // Ensure output directory exists
   if (!fs.existsSync(outputDir)) {
     fs.mkdirSync(outputDir, { recursive: true });
   }
@@ -45,7 +52,6 @@ async function main() {
   // --------------------------------------------------------------------------
   console.log('📖 Loading _docs.json...');
   const rawDocs = fs.readFileSync(docsPath, 'utf-8');
-  // Helper to remove BOM if present (common in UE4 exports)
   const cleanDocs = rawDocs.replace(/^\uFEFF/, '');
   const docsData: GameSectionSchema[] = JSON.parse(cleanDocs);
   console.log(
@@ -56,27 +62,26 @@ async function main() {
   // 3. EXTRACT PRODUCTS
   // --------------------------------------------------------------------------
   console.log('\n📦 Extracting Products...');
-  const productsByCategory = extractProducts(docsData);
+  const products = extractProducts(docsData);
 
-  // Create a flat list for easy ID lookup later
-  const productsFlat = Object.values(productsByCategory).flat();
+  // Count categories for logging
+  const categoryCount = new Set(products.map((p) => p.category)).size;
   console.log(
-    `   - Found ${productsFlat.length} products in ${Object.keys(productsByCategory).length} categories.`,
+    `   - Found ${products.length} products in ${categoryCount} categories.`,
   );
 
   // --------------------------------------------------------------------------
   // 4. EXTRACT RECIPES
   // --------------------------------------------------------------------------
   console.log('\n📜 Extracting Recipes...');
-  const recipesFlat = extractRecipes(docsData);
-  console.log(`   - Found ${recipesFlat.length} valid recipes.`);
+  const recipes = extractRecipes(docsData);
+  console.log(`   - Found ${recipes.length} valid recipes.`);
 
   // --------------------------------------------------------------------------
   // 5. ANALYZE GRAPH (Structure)
   // --------------------------------------------------------------------------
   console.log('\n🕸️  Analyzing Graph Structure...');
-  // This builds the indices (byProduct, byIngredient) and runs Tarjan's Algo
-  const recipesOrganized = organizeRecipes(recipesFlat);
+  const recipesOrganized = organizeRecipes(recipes);
 
   console.log(
     `   - Identified ${recipesOrganized.circularRelationships.stronglyConnectedComponents.length} SCCs (Loops).`,
@@ -89,11 +94,10 @@ async function main() {
   // 6. GENERATE TOPOLOGY (Metrics + Structure)
   // --------------------------------------------------------------------------
   console.log('\n📐 Generating Topological Manifest...');
-  // Calculates throughput and weight (friction) for every edge
   const topology = generateTopology(
-    recipesFlat,
+    recipes,
     recipesOrganized.circularRelationships,
-    productsFlat,
+    products,
   );
 
   console.log(`   - Edges Generated: ${topology.edges.length}`);
@@ -111,38 +115,8 @@ async function main() {
     console.log(`   ✅ ${filename.padEnd(25)} (${size} KB)`);
   };
 
-  // Product Data
-  write('products.json', productsByCategory);
-  write('products-flat.json', productsFlat);
-
-  // Recipe Data
-  write('recipes.json', recipesFlat);
-  write('recipes-organized.json', recipesOrganized);
-
-  // Build the lightweight index for quick lookups
-  const recipesIndex = {
-    byProduct: Object.fromEntries(
-      Object.entries(recipesOrganized.byProduct).map(([k, v]) => [
-        k,
-        v.map((r) => r.id),
-      ]),
-    ),
-    byIngredient: Object.fromEntries(
-      Object.entries(recipesOrganized.byIngredient).map(([k, v]) => [
-        k,
-        v.map((r) => r.id),
-      ]),
-    ),
-    byMachine: Object.fromEntries(
-      Object.entries(recipesOrganized.byMachine).map(([k, v]) => [
-        k,
-        v.map((r) => r.id),
-      ]),
-    ),
-  };
-  write('recipes-index.json', recipesIndex);
-
-  // The Topological Manifest
+  write('products-flat.json', products);
+  write('recipes.json', recipes);
   write('topology.json', topology);
 
   const end = performance.now();
