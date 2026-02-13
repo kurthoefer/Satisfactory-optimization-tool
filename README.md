@@ -22,13 +22,14 @@ An interactive production chain visualizer for [Satisfactory](https://www.satisf
 
 ## Tech Stack
 
+|                   |                                                   |
 | ----------------- | ------------------------------------------------- |
-| **Frontend** | React 19 · TypeScript · React Router v7 |
-| **Visualization** | D3.js · d3-dag |
-| **Styling** | Tailwind CSS v4 |
-| **Build** | Vite (Rolldown) |
-| **Deployment** | AWS Amplify |
-| **Data** | Parsed from Satisfactory game files at build time |
+| **Frontend**      | React 19 · TypeScript · React Router v7           |
+| **Visualization** | D3.js · d3-dag                                    |
+| **Styling**       | Tailwind CSS v4                                   |
+| **Build**         | Vite (Rolldown)                                   |
+| **Deployment**    | AWS Amplify                                       |
+| **Data**          | Parsed from Satisfactory game files at build time |
 
 ---
 
