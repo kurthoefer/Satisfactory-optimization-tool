@@ -26,12 +26,12 @@ export const ProductTile = forwardRef<HTMLButtonElement, ProductTileProps>(
         onKeyDown={onKeyDown}
         tabIndex={tabIndex}
         className={`
-          flex flex-col items-center p-3 rounded
-          border-2 transition-colors
+          flex flex-col items-center p-2 rounded-md
+          border transition-colors
           ${
             isSelected
-              ? 'border-blue-500 bg-blue-100'
-              : 'border-transparent hover:bg-blue-50 focus:bg-blue-100 focus:border-blue-500'
+              ? 'border-slate-500 bg-slate-100'
+              : 'border-transparent hover:bg-slate-50 focus:bg-slate-100 focus:border-slate-500'
           }
           focus:outline-none
         `}
@@ -41,9 +41,9 @@ export const ProductTile = forwardRef<HTMLButtonElement, ProductTileProps>(
         <ImageWithFallback
           src={imagePath}
           alt={product.name}
-          className='w-16 h-16 mb-2 object-contain'
+          className='w-full aspect-square mb-1 object-contain'
         />
-        <span className='text-sm text-center leading-tight'>
+        <span className='text-xs text-center leading-tight text-slate-900 line-clamp-2'>
           {product.name}
         </span>
       </button>

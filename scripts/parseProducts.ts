@@ -6,323 +6,323 @@
 
 // ! Deprecated.
 
-import * as fs from 'fs';
-import * as path from 'path';
-import { slugify } from '../src/utils/slugify.ts';
-import type { Product, ProductsByCategory } from '../src/types/index.ts';
+// import * as fs from 'fs';
+// import * as path from 'path';
+// import { slugify } from '../src/utils/slugify.ts';
+// import type { Product, ProductsByCategory } from '../src/types/index.ts';
 
-// Schemas
-interface GameItemSchema {
-  ClassName: string;
-  mDisplayName?: string;
-  mDescription?: string;
-  mForm?: string;
-  mStackSize?: string;
-  mEnergyValue?: string;
-  mRadioactiveDecay?: string;
-}
-
-interface GameSectionSchema {
-  NativeClass: string;
-  Classes?: GameItemSchema[];
-}
-
-// interface ProductSchema {
-//   id: string;
-//   slug: string;
-//   name: string;
-//   className: string;
-//   description: string;
-//   form: string;
-//   stackSize: string;
-//   energyValue: number;
-//   radioactive: number;
-//   category: string;
+// // Schemas
+// interface GameItemSchema {
+//   ClassName: string;
+//   mDisplayName?: string;
+//   mDescription?: string;
+//   mForm?: string;
+//   mStackSize?: string;
+//   mEnergyValue?: string;
+//   mRadioactiveDecay?: string;
 // }
 
-// interface ProductsByCategorySchema {
-//   [category: string]: ProductSchema[];
+// interface GameSectionSchema {
+//   NativeClass: string;
+//   Classes?: GameItemSchema[];
 // }
 
-// Category determination based on ClassName patterns and NativeClass
-function categorizeItem(
-  item: GameItemSchema,
-  nativeClass: string,
-): string | null {
-  const className = item.ClassName;
-  const displayName = item.mDisplayName || '';
-  const description = item.mDescription || '';
-  const form = item.mForm || '';
+// // interface ProductSchema {
+// //   id: string;
+// //   slug: string;
+// //   name: string;
+// //   className: string;
+// //   description: string;
+// //   form: string;
+// //   stackSize: string;
+// //   energyValue: number;
+// //   radioactive: number;
+// //   category: string;
+// // }
 
-  // Skip items without display names
-  if (!displayName) return null;
+// // interface ProductsByCategorySchema {
+// //   [category: string]: ProductSchema[];
+// // }
 
-  // Resources (mined directly)
-  if (nativeClass === "Class'/Script/FactoryGame.FGResourceDescriptor'") {
-    if (form === 'RF_LIQUID') return 'Liquids';
-    return 'Resources';
-  }
+// // Category determination based on ClassName patterns and NativeClass
+// function categorizeItem(
+//   item: GameItemSchema,
+//   nativeClass: string,
+// ): string | null {
+//   const className = item.ClassName;
+//   const displayName = item.mDisplayName || '';
+//   const description = item.mDescription || '';
+//   const form = item.mForm || '';
 
-  // Equipment
-  if (
-    nativeClass === "Class'/Script/FactoryGame.FGEquipmentDescriptor'" ||
-    nativeClass === "Class'/Script/FactoryGame.FGConsumableDescriptor'"
-  ) {
-    return 'Equipment';
-  }
+//   // Skip items without display names
+//   if (!displayName) return null;
 
-  // Ammo
-  if (
-    className.includes('Cartridge') ||
-    className.includes('Nobelisk') ||
-    className.includes('Rebar') ||
-    description.toLowerCase().includes('ammo for')
-  ) {
-    return 'Ammo';
-  }
+//   // Resources (mined directly)
+//   if (nativeClass === "Class'/Script/FactoryGame.FGResourceDescriptor'") {
+//     if (form === 'RF_LIQUID') return 'Liquids';
+//     return 'Resources';
+//   }
 
-  // FICSMAS items
-  if (
-    className.includes('Xmas') ||
-    className.includes('CandyCane') ||
-    className.includes('Snowball') ||
-    className.includes('Wreath') ||
-    className.includes('XmasBall') ||
-    className.includes('Gift')
-  ) {
-    return 'FICSMAS';
-  }
+//   // Equipment
+//   if (
+//     nativeClass === "Class'/Script/FactoryGame.FGEquipmentDescriptor'" ||
+//     nativeClass === "Class'/Script/FactoryGame.FGConsumableDescriptor'"
+//   ) {
+//     return 'Equipment';
+//   }
 
-  // Liquids
-  if (form === 'RF_LIQUID' || className.includes('Liquid')) {
-    return 'Liquids';
-  }
+//   // Ammo
+//   if (
+//     className.includes('Cartridge') ||
+//     className.includes('Nobelisk') ||
+//     className.includes('Rebar') ||
+//     description.toLowerCase().includes('ammo for')
+//   ) {
+//     return 'Ammo';
+//   }
 
-  // Packaged items
-  if (className.includes('Packaged')) {
-    return 'Packaged';
-  }
+//   // FICSMAS items
+//   if (
+//     className.includes('Xmas') ||
+//     className.includes('CandyCane') ||
+//     className.includes('Snowball') ||
+//     className.includes('Wreath') ||
+//     className.includes('XmasBall') ||
+//     className.includes('Gift')
+//   ) {
+//     return 'FICSMAS';
+//   }
 
-  // Ingots
-  if (className.includes('Ingot')) {
-    return 'Ingots';
-  }
+//   // Liquids
+//   if (form === 'RF_LIQUID' || className.includes('Liquid')) {
+//     return 'Liquids';
+//   }
 
-  // Ores
-  if (className.startsWith('Desc_Ore')) {
-    return 'Ores';
-  }
+//   // Packaged items
+//   if (className.includes('Packaged')) {
+//     return 'Packaged';
+//   }
 
-  // Nuclear
-  if (
-    className.includes('Uranium') ||
-    className.includes('Plutonium') ||
-    className.includes('Nuclear') ||
-    description.toLowerCase().includes('radioactive')
-  ) {
-    return 'Nuclear';
-  }
+//   // Ingots
+//   if (className.includes('Ingot')) {
+//     return 'Ingots';
+//   }
 
-  // Space Elevator Parts
-  if (className.includes('SpaceElevatorPart')) {
-    return 'Space Elevator Parts';
-  }
+//   // Ores
+//   if (className.startsWith('Desc_Ore')) {
+//     return 'Ores';
+//   }
 
-  // Power/Energy
-  if (
-    className.includes('Battery') ||
-    className.includes('CrystalShard') ||
-    className.includes('Power')
-  ) {
-    return 'Power';
-  }
+//   // Nuclear
+//   if (
+//     className.includes('Uranium') ||
+//     className.includes('Plutonium') ||
+//     className.includes('Nuclear') ||
+//     description.toLowerCase().includes('radioactive')
+//   ) {
+//     return 'Nuclear';
+//   }
 
-  // Advanced Electronics
-  if (
-    className.includes('Computer') ||
-    className.includes('Circuit') ||
-    (className.includes('Crystal') && className.includes('Oscillator')) ||
-    className.includes('RadioControl') ||
-    className.includes('HighSpeed')
-  ) {
-    return 'Electronics';
-  }
+//   // Space Elevator Parts
+//   if (className.includes('SpaceElevatorPart')) {
+//     return 'Space Elevator Parts';
+//   }
 
-  // Motors and Frames
-  if (
-    className.includes('Motor') ||
-    className.includes('ModularFrame') ||
-    className.includes('HeavyModularFrame')
-  ) {
-    return 'Industrial Parts';
-  }
+//   // Power/Energy
+//   if (
+//     className.includes('Battery') ||
+//     className.includes('CrystalShard') ||
+//     className.includes('Power')
+//   ) {
+//     return 'Power';
+//   }
 
-  // Basic Parts
-  if (
-    className.includes('Plate') ||
-    className.includes('Rod') ||
-    className.includes('Screw') ||
-    className.includes('Wire') ||
-    className.includes('Cable') ||
-    className.includes('Sheet') ||
-    className.includes('Beam') ||
-    className.includes('Pipe') ||
-    className.includes('Rotor') ||
-    className.includes('Stator')
-  ) {
-    return 'Standard Parts';
-  }
+//   // Advanced Electronics
+//   if (
+//     className.includes('Computer') ||
+//     className.includes('Circuit') ||
+//     (className.includes('Crystal') && className.includes('Oscillator')) ||
+//     className.includes('RadioControl') ||
+//     className.includes('HighSpeed')
+//   ) {
+//     return 'Electronics';
+//   }
 
-  // Materials
-  if (
-    className.includes('Concrete') ||
-    className.includes('Silica') ||
-    className.includes('Quartz') ||
-    className.includes('Rubber') ||
-    className.includes('Plastic') ||
-    className.includes('Fabric') ||
-    className.includes('Biomass')
-  ) {
-    return 'Materials';
-  }
+//   // Motors and Frames
+//   if (
+//     className.includes('Motor') ||
+//     className.includes('ModularFrame') ||
+//     className.includes('HeavyModularFrame')
+//   ) {
+//     return 'Industrial Parts';
+//   }
 
-  // Alien/Special items
-  if (
-    className.includes('Alien') ||
-    className.includes('SAM') ||
-    className.includes('Mycelia') ||
-    className.includes('Hog') ||
-    className.includes('Hatcher') ||
-    className.includes('Spitter') ||
-    className.includes('Stinger')
-  ) {
-    return 'Alien';
-  }
+//   // Basic Parts
+//   if (
+//     className.includes('Plate') ||
+//     className.includes('Rod') ||
+//     className.includes('Screw') ||
+//     className.includes('Wire') ||
+//     className.includes('Cable') ||
+//     className.includes('Sheet') ||
+//     className.includes('Beam') ||
+//     className.includes('Pipe') ||
+//     className.includes('Rotor') ||
+//     className.includes('Stator')
+//   ) {
+//     return 'Standard Parts';
+//   }
 
-  return 'Other';
-}
+//   // Materials
+//   if (
+//     className.includes('Concrete') ||
+//     className.includes('Silica') ||
+//     className.includes('Quartz') ||
+//     className.includes('Rubber') ||
+//     className.includes('Plastic') ||
+//     className.includes('Fabric') ||
+//     className.includes('Biomass')
+//   ) {
+//     return 'Materials';
+//   }
 
-// Extract products from game data
-function extractProducts(docsData: GameSectionSchema[]): ProductsByCategory {
-  const productsByCategory: ProductsByCategory = {};
+//   // Alien/Special items
+//   if (
+//     className.includes('Alien') ||
+//     className.includes('SAM') ||
+//     className.includes('Mycelia') ||
+//     className.includes('Hog') ||
+//     className.includes('Hatcher') ||
+//     className.includes('Spitter') ||
+//     className.includes('Stinger')
+//   ) {
+//     return 'Alien';
+//   }
 
-  docsData.forEach((section) => {
-    const nativeClass = section.NativeClass;
+//   return 'Other';
+// }
 
-    // Only care about descriptors (actual items)
-    if (!nativeClass || !nativeClass.includes('Descriptor')) return;
+// // Extract products from game data
+// function extractProducts(docsData: GameSectionSchema[]): ProductsByCategory {
+//   const productsByCategory: ProductsByCategory = {};
 
-    section.Classes?.forEach((item) => {
-      const category = categorizeItem(item, nativeClass);
+//   docsData.forEach((section) => {
+//     const nativeClass = section.NativeClass;
 
-      if (!category) return;
+//     // Only care about descriptors (actual items)
+//     if (!nativeClass || !nativeClass.includes('Descriptor')) return;
 
-      if (!productsByCategory[category]) {
-        productsByCategory[category] = [];
-      }
+//     section.Classes?.forEach((item) => {
+//       const category = categorizeItem(item, nativeClass);
 
-      const displayName = item.mDisplayName || '';
+//       if (!category) return;
 
-      const product: Product = {
-        id: item.ClassName.toLowerCase()
-          .replace(/_c$/, '')
-          .replace(/^desc_/, ''),
-        slug: slugify(displayName),
-        name: displayName,
-        className: item.ClassName,
-        description: item.mDescription || '',
-        form: item.mForm || 'RF_SOLID',
-        stackSize: item.mStackSize || 'SS_MEDIUM',
-        energyValue: parseFloat(item.mEnergyValue || '0'),
-        radioactive: parseFloat(item.mRadioactiveDecay || '0'),
-        category,
-      };
+//       if (!productsByCategory[category]) {
+//         productsByCategory[category] = [];
+//       }
 
-      productsByCategory[category].push(product);
-    });
-  });
+//       const displayName = item.mDisplayName || '';
 
-  // Sort each category alphabetically
-  Object.keys(productsByCategory).forEach((category) => {
-    productsByCategory[category].sort((a, b) => a.name.localeCompare(b.name));
-  });
+//       const product: Product = {
+//         id: item.ClassName.toLowerCase()
+//           .replace(/_c$/, '')
+//           .replace(/^desc_/, ''),
+//         slug: slugify(displayName),
+//         name: displayName,
+//         className: item.ClassName,
+//         description: item.mDescription || '',
+//         form: item.mForm || 'RF_SOLID',
+//         stackSize: item.mStackSize || 'SS_MEDIUM',
+//         energyValue: parseFloat(item.mEnergyValue || '0'),
+//         radioactive: parseFloat(item.mRadioactiveDecay || '0'),
+//         category,
+//       };
 
-  return productsByCategory;
-}
+//       productsByCategory[category].push(product);
+//     });
+//   });
 
-// Main execution
-async function main() {
-  console.log('Parsing Satisfactory products from _docs.json...\n');
+//   // Sort each category alphabetically
+//   Object.keys(productsByCategory).forEach((category) => {
+//     productsByCategory[category].sort((a, b) => a.name.localeCompare(b.name));
+//   });
 
-  // Paths
-  const docsPath = path.join(process.cwd(), '_docs.json');
-  const outputDir = path.join(process.cwd(), 'src', 'data');
+//   return productsByCategory;
+// }
 
-  // Check if docs.json exists
-  if (!fs.existsSync(docsPath)) {
-    console.error('❌ Error: docs.json not found in project root');
-    console.error('   Please place docs.json in the root directory');
-    process.exit(1);
-  }
+// // Main execution
+// async function main() {
+//   console.log('Parsing Satisfactory products from _docs.json...\n');
 
-  // Load game data
-  const docsData: GameSectionSchema[] = JSON.parse(
-    fs.readFileSync(docsPath, 'utf-8'),
-  );
+//   // Paths
+//   const docsPath = path.join(process.cwd(), '_docs.json');
+//   const outputDir = path.join(process.cwd(), 'src', 'data');
 
-  // Extract products
-  const products = extractProducts(docsData);
+//   // Check if docs.json exists
+//   if (!fs.existsSync(docsPath)) {
+//     console.error('❌ Error: docs.json not found in project root');
+//     console.error('   Please place docs.json in the root directory');
+//     process.exit(1);
+//   }
 
-  // Statistics
-  console.log('Extracted products by category:');
-  Object.keys(products)
-    .sort()
-    .forEach((category) => {
-      console.log(`  ${category}: ${products[category].length} items`);
-    });
+//   // Load game data
+//   const docsData: GameSectionSchema[] = JSON.parse(
+//     fs.readFileSync(docsPath, 'utf-8'),
+//   );
 
-  const totalItems = Object.values(products).reduce(
-    (sum, arr) => sum + arr.length,
-    0,
-  );
-  console.log(
-    `\nTotal: ${totalItems} items across ${
-      Object.keys(products).length
-    } categories\n`,
-  );
+//   // Extract products
+//   const products = extractProducts(docsData);
 
-  // Create output directory if needed
-  if (!fs.existsSync(outputDir)) {
-    fs.mkdirSync(outputDir, { recursive: true });
-  }
+//   // Statistics
+//   console.log('Extracted products by category:');
+//   Object.keys(products)
+//     .sort()
+//     .forEach((category) => {
+//       console.log(`  ${category}: ${products[category].length} items`);
+//     });
 
-  // Save products.json (organized by category)
-  const productsPath = path.join(outputDir, 'products.json');
-  fs.writeFileSync(productsPath, JSON.stringify(products, null, 2));
-  console.log(`✅ Saved to ${productsPath}`);
+//   const totalItems = Object.values(products).reduce(
+//     (sum, arr) => sum + arr.length,
+//     0,
+//   );
+//   console.log(
+//     `\nTotal: ${totalItems} items across ${
+//       Object.keys(products).length
+//     } categories\n`,
+//   );
 
-  // Save products-flat.json (flat array)
-  const flatProducts: Product[] = [];
-  Object.values(products).forEach((categoryProducts) => {
-    flatProducts.push(...categoryProducts);
-  });
+//   // Create output directory if needed
+//   if (!fs.existsSync(outputDir)) {
+//     fs.mkdirSync(outputDir, { recursive: true });
+//   }
 
-  const flatPath = path.join(outputDir, 'products-flat.json');
-  fs.writeFileSync(flatPath, JSON.stringify(flatProducts, null, 2));
-  console.log(`✅ Saved to ${flatPath}`);
+//   // Save products.json (organized by category)
+//   const productsPath = path.join(outputDir, 'products.json');
+//   fs.writeFileSync(productsPath, JSON.stringify(products, null, 2));
+//   console.log(`✅ Saved to ${productsPath}`);
 
-  console.log('\n✨ Done! Products parsed successfully.');
-}
+//   // Save products-flat.json (flat array)
+//   const flatProducts: Product[] = [];
+//   Object.values(products).forEach((categoryProducts) => {
+//     flatProducts.push(...categoryProducts);
+//   });
 
-// Run if executed directly
-// Check if this file is being run directly (ES module way)
-const isMainModule = import.meta.url === `file://${process.argv[1]}`;
+//   const flatPath = path.join(outputDir, 'products-flat.json');
+//   fs.writeFileSync(flatPath, JSON.stringify(flatProducts, null, 2));
+//   console.log(`✅ Saved to ${flatPath}`);
 
-if (isMainModule) {
-  main().catch((error) => {
-    console.error('Error parsing products:', error);
-    process.exit(1);
-  });
-}
+//   console.log('\n✨ Done! Products parsed successfully.');
+// }
 
-export { extractProducts };
+// // Run if executed directly
+// // Check if this file is being run directly (ES module way)
+// const isMainModule = import.meta.url === `file://${process.argv[1]}`;
+
+// if (isMainModule) {
+//   main().catch((error) => {
+//     console.error('Error parsing products:', error);
+//     process.exit(1);
+//   });
+// }
+
+// export { extractProducts };

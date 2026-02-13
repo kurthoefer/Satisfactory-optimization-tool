@@ -1,0 +1,25 @@
+@import 'tailwindcss';
+
+/* In v4, custom utilities are just standard CSS classes 
+   placed after the import. Tailwind will pick them up! */
+@layer utilities {
+  @keyframes quirky-logic {
+    0%,
+    90%,
+    100% {
+      transform: translate(0, 0) rotate(0deg);
+      filter: saturate(1);
+    }
+    92% {
+      transform: translate(-1px, -2px) rotate(-1deg);
+      filter: saturate(2);
+    }
+    95% {
+      transform: translate(2px, 1px) rotate(2deg);
+    }
+  }
+
+  .animate-quirky {
+    animation: quirky-logic 6s ease-in-out infinite;
+  }
+}

@@ -21,8 +21,8 @@ export const router = createBrowserRouter([
             element: <Visualization />, // /calculate (empty state)
           },
           {
-            path: ':productId',
-            element: <Visualization />, // /calculate/ironplate (with results)
+            path: ':productSlug',
+            element: <Visualization />, // /visualize/ironplate (with results)
           },
         ],
       },

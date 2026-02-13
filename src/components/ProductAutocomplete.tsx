@@ -31,7 +31,7 @@ export default function ProductAutocomplete() {
   );
 
   const handleProductSelect = (product: Product) => {
-    //! Changed calculate to visulize, CRITICAL JUNCTION, ROUTER weak-point
+    //! Changed calculate to visulize, CRITICAL JUNCTION, ROUTER weak-point (what depends on this to always be `/visualize/...etc`)
     navigate(`/visualize/${product.slug}`);
     setIsOpen(false);
     setSearchTerm('');

@@ -1,45 +1,55 @@
-// src/components/Navigation.tsx
+import { DESIGN_TOKENS } from '@/styles/designTokens';
+import { cn } from '@/utils/cn';
 import { Link } from 'react-router-dom';
 
 export default function Navigation() {
   return (
-    <nav className='p-4 bg-gray-950 border-b border-orange-500'>
-      <div className='flex justify-between'>
+    // Narrowed from p-4 to py-2 for a "sharp" slim profile
+    <nav className='py-2 px-6 bg-gray-950 border-b border-orange-600/50 flex items-center justify-between'>
+      {/* Brand Section */}
+      <Link
+        to='/'
+        className='text-sm font-black tracking-tighter text-orange-500 uppercase flex items-center gap-2'
+      >
+        <span className='w-2 h-2 bg-orange-500 rounded-full animate-pulse' />
+        Satisfactory Planner
+      </Link>
+
+      {/* Nav Links - Deemphasized with text-slate-400 */}
+      <div className='flex items-center gap-10'>
         <Link
           to='/'
-          className='text-xl text-orange-500'
+          className='text-xs font-medium text-white hover:text-orange-400 transition-colors flex items-center'
         >
-          Satisfactory Planner
+          Calculator
+          <span
+            className={cn(
+              DESIGN_TOKENS.text.tinyEmbellished,
+              DESIGN_TOKENS.animation.quirky,
+              'text-cyan-400 ml-2', // Changed to Cyan and forced margin-left
+            )}
+          >
+            Alpha!
+          </span>
         </Link>
 
-        <div className='flex gap-8'>
+        {['My Factories', 'Blueprints', 'Profile'].map((item) => (
           <Link
-            to='/'
-            className='text-white'
+            key={item}
+            to={`/${item.toLowerCase().replace(' ', '-')}`}
+            className='text-xs font-medium text-slate-400 hover:text-white transition-colors'
           >
-            Calculator
+            {item}
           </Link>
-          <Link
-            to='/factories'
-            className='text-white'
-          >
-            My Factories
-          </Link>
-          <Link
-            to='/blueprints'
-            className='text-white'
-          >
-            Blueprints
-          </Link>
-          <Link
-            to='/profile'
-            className='text-white'
-          >
-            Profile
-          </Link>
-        </div>
+        ))}
+      </div>
 
-        <button className='px-6 py-2 bg-orange-500 text-white rounded'>
+      {/* Action Area */}
+      <div className='flex items-center gap-4'>
+        <button className='text-[10px] font-bold uppercase tracking-widest text-slate-500 hover:text-white transition-colors'>
+          Support
+        </button>
+        <button className='px-3 py-1 bg-orange-600 hover:bg-orange-500 text-white text-[10px] font-black uppercase tracking-wider rounded-sm transition-all active:scale-95'>
           Login
         </button>
       </div>

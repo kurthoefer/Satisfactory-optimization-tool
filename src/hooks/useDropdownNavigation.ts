@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import type { Product, ProductsByCategory } from '@/types';
+import type { Product } from '@/types';
 
 interface GridSection {
   category: string;
@@ -11,13 +11,13 @@ interface GridSection {
 
 interface UseDropdownNavigationProps {
   isOpen: boolean;
-  filteredProducts: ProductsByCategory;
+  filteredProducts: Record<string, Product[]>;
   onSelect: (product: Product) => void;
   onClose: () => void;
 }
 
 const buildGridSections = (
-  productsByCategory: ProductsByCategory,
+  productsByCategory: Record<string, Product[]>,
 ): GridSection[] => {
   let globalIndex = 0;
 

@@ -1,13 +1,32 @@
-import type {
-  Recipe,
-  RecipesOrganized,
-  CircularRelationships,
-} from '../../src/types';
+/**
+ * recipeAnalysis.ts
+ *
+ * Runs Tarjan's algorithm on the recipe graph to detect
+ * strongly connected components (circular dependencies).
+ *
+ * This is a build-time concern. The output is embedded in
+ * topology.json and consumed at runtime by indexes.ts.
+ */
 
-// Helper: Check if an item produces itself (immediate loop)
+import type { Recipe } from '../../src/types';
+
+// ============================================================================
+// TYPES (Build-time only)
+// ============================================================================
+
+export interface CircularRelationships {
+  stronglyConnectedComponents: string[][];
+  circularItems: string[];
+}
+
+// ============================================================================
+// HELPERS
+// ============================================================================
+
+/** Check if an item produces itself (immediate loop) */
 function hasSelfLoop(
   item: string,
-  byProduct: { [className: string]: Recipe[] },
+  byProduct: Record<string, Recipe[]>,
 ): boolean {
   const recipes = byProduct[item] || [];
   return recipes.some((recipe) =>
@@ -15,10 +34,35 @@ function hasSelfLoop(
   );
 }
 
-// Helper: Tarjan's Algorithm for SCCs
-function findCircularRelationships(byProduct: {
-  [className: string]: Recipe[];
-}): CircularRelationships {
+/** Build the byProduct index needed for Tarjan's traversal */
+function indexByProduct(recipes: Recipe[]): Record<string, Recipe[]> {
+  const byProduct: Record<string, Recipe[]> = {};
+
+  recipes.forEach((recipe) => {
+    recipe.products.forEach((product) => {
+      if (!byProduct[product.className]) {
+        byProduct[product.className] = [];
+      }
+      byProduct[product.className].push(recipe);
+    });
+  });
+
+  return byProduct;
+}
+
+// ============================================================================
+// TARJAN'S ALGORITHM
+// ============================================================================
+
+/**
+ * Finds all strongly connected components in the recipe graph.
+ * Takes the flat recipe list directly — builds its own indexes internally.
+ */
+export function findCircularRelationships(
+  recipes: Recipe[],
+): CircularRelationships {
+  const byProduct = indexByProduct(recipes);
+
   let index = 0;
   const indices = new Map<string, number>();
   const lowLinks = new Map<string, number>();
@@ -26,7 +70,7 @@ function findCircularRelationships(byProduct: {
   const stack: string[] = [];
   const sccs: string[][] = [];
 
-  // Get all items in the recipe graph
+  // Collect all items in the graph
   const allItems = new Set<string>();
   Object.keys(byProduct).forEach((item) => allItems.add(item));
   Object.values(byProduct).forEach((recipes) => {
@@ -80,90 +124,20 @@ function findCircularRelationships(byProduct: {
     }
   }
 
-  // Process Results
-  const itemToSCC = new Map<string, number>();
-  const circularItems = new Set<string>();
+  // Identify circular items (SCCs with >1 member, or self-loops)
+  const circularItems: string[] = [];
 
-  sccs.forEach((scc, sccIndex) => {
+  sccs.forEach((scc) => {
     const isCircular =
       scc.length > 1 || (scc.length === 1 && hasSelfLoop(scc[0], byProduct));
 
-    scc.forEach((item) => {
-      itemToSCC.set(item, sccIndex);
-      if (isCircular) {
-        circularItems.add(item);
-      }
-    });
-  });
-
-  const circularRecipes = new Set<string>();
-  Object.entries(byProduct).forEach(([product, recipes]) => {
-    if (circularItems.has(product)) {
-      recipes.forEach((recipe) => {
-        const productSCC = itemToSCC.get(product);
-        const hasCircularIngredient = recipe.ingredients.some(
-          (ing) => itemToSCC.get(ing.className) === productSCC,
-        );
-
-        if (hasCircularIngredient) {
-          circularRecipes.add(recipe.className);
-        }
-      });
+    if (isCircular) {
+      circularItems.push(...scc);
     }
   });
 
   return {
     stronglyConnectedComponents: sccs,
-    circularItems: Array.from(circularItems),
-    circularRecipes: Array.from(circularRecipes),
-  };
-}
-
-// Main Export
-export function organizeRecipes(recipes: Recipe[]): RecipesOrganized {
-  const byProduct: { [className: string]: Recipe[] } = {};
-  const byIngredient: { [className: string]: Recipe[] } = {};
-  const byMachine: { [machine: string]: Recipe[] } = {};
-  const alternates: Recipe[] = [];
-
-  recipes.forEach((recipe) => {
-    // Index by product
-    recipe.products.forEach((product) => {
-      if (!byProduct[product.className]) {
-        byProduct[product.className] = [];
-      }
-      byProduct[product.className].push(recipe);
-    });
-
-    // Index by ingredient
-    recipe.ingredients.forEach((ingredient) => {
-      if (!byIngredient[ingredient.className]) {
-        byIngredient[ingredient.className] = [];
-      }
-      byIngredient[ingredient.className].push(recipe);
-    });
-
-    // Index by machine
-    if (!byMachine[recipe.producedIn]) {
-      byMachine[recipe.producedIn] = [];
-    }
-    byMachine[recipe.producedIn].push(recipe);
-
-    // Collect alternates
-    if (recipe.isAlternate) {
-      alternates.push(recipe);
-    }
-  });
-
-  // Analyze circular relationships
-  const circularRelationships = findCircularRelationships(byProduct);
-
-  return {
-    all: recipes,
-    byProduct,
-    byIngredient,
-    byMachine,
-    alternates,
-    circularRelationships,
+    circularItems,
   };
 }

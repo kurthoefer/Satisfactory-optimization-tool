@@ -10,8 +10,8 @@ export const ProductGrid = forwardRef<HTMLDivElement, ProductGridProps>(
       <div
         ref={ref}
         className='
-          grid grid-cols-3 gap-3 p-4
-          md:grid-cols-4 lg:grid-cols-5
+          grid gap-2 p-3
+          grid-cols-[repeat(auto-fill,minmax(70px,1fr))]
         '
         role='presentation'
       >

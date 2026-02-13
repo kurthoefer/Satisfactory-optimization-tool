@@ -1,10 +1,11 @@
 import type {
   Recipe,
   TopologicalEdge,
-  CircularRelationships,
   TopologicalManifest,
   Product,
 } from '../../src/types';
+
+import type { CircularRelationships } from './recipeAnalysis';
 
 // Constants
 const MAX_BELT_RATE = 1200;
@@ -13,6 +14,7 @@ const MAX_PIPE_RATE = 600;
 // Helper Logic
 function getLogisticsMetrics(amount: number, time: number, form: string) {
   const isFluid = form === 'RF_LIQUID' || form === 'RF_GAS';
+  //TODO fluid volume conversion: might need adjustment currently % 1000
   const quantity = isFluid ? amount / 1000 : amount;
 
   const throughput = (quantity / time) * 60;

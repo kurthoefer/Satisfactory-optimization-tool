@@ -1,5 +1,3 @@
-//* Dropdown container for autocomplete results
-
 interface DropdownProps {
   isOpen: boolean;
   children: React.ReactNode;
@@ -16,8 +14,8 @@ export const Dropdown: React.FC<DropdownProps> = ({
   return (
     <div
       className={`
-        absolute z-10 w-full mt-2
-        bg-white border-2 border-gray-300 rounded-lg shadow-lg
+        absolute z-10 w-full mt-1
+        bg-white border border-slate-300 rounded-md shadow-lg
         max-h-96 overflow-y-auto
         ${className}
       `}

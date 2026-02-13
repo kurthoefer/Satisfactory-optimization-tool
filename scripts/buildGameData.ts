@@ -24,7 +24,7 @@ import {
 import { extractRecipes } from './parsers/extractRecipes';
 
 // Import Analysis
-import { organizeRecipes } from './analysis/recipeAnalysis';
+import { findCircularRelationships } from './analysis/recipeAnalysis';
 import { generateTopology } from './analysis/computeLogistics';
 
 async function main() {
@@ -78,27 +78,23 @@ async function main() {
   console.log(`   - Found ${recipes.length} valid recipes.`);
 
   // --------------------------------------------------------------------------
-  // 5. ANALYZE GRAPH (Structure)
+  // 5. ANALYZE GRAPH (Circular Dependencies)
   // --------------------------------------------------------------------------
   console.log('\n🕸️  Analyzing Graph Structure...');
-  const recipesOrganized = organizeRecipes(recipes);
+  const circularRelationships = findCircularRelationships(recipes);
 
   console.log(
-    `   - Identified ${recipesOrganized.circularRelationships.stronglyConnectedComponents.length} SCCs (Loops).`,
+    `   - Identified ${circularRelationships.stronglyConnectedComponents.length} SCCs (Loops).`,
   );
   console.log(
-    `   - ${recipesOrganized.circularRelationships.circularRecipes.length} recipes are involved in loops.`,
+    `   - ${circularRelationships.circularItems.length} items are involved in loops.`,
   );
 
   // --------------------------------------------------------------------------
   // 6. GENERATE TOPOLOGY (Metrics + Structure)
   // --------------------------------------------------------------------------
   console.log('\n📐 Generating Topological Manifest...');
-  const topology = generateTopology(
-    recipes,
-    recipesOrganized.circularRelationships,
-    products,
-  );
+  const topology = generateTopology(recipes, circularRelationships, products);
 
   console.log(`   - Edges Generated: ${topology.edges.length}`);
   console.log(`   - Graph Metadata Embedded.`);
