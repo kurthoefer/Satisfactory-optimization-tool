@@ -14,6 +14,10 @@ An interactive production chain visualizer for [Satisfactory](https://www.satisf
 - **Interactive graph visualization** — D3.js force-directed graphs with zoom, pan, and drag
 - **Rich visual analysis** — more coming soon!
 
+## 🖼️ Screenshots
+
+> _Coming soon_
+
 ---
 
 ## 🛠 Tech Stack
@@ -118,6 +122,8 @@ Selecting a target product triggers a breadth-first traversal of its upstream de
 ---
 
 ## 📄 License
+
+[MIT](LICENSE)
 
 This project is not affiliated with Coffee Stain Studios. Satisfactory is a registered trademark of Coffee Stain Studios AB.
 
