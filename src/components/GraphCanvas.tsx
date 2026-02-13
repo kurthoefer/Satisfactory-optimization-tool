@@ -1,5 +1,4 @@
 /**
- * GraphCanvas
  *
  * Rendering terminal for the force-directed graph.
  * Receives pre-tagged { nodes, links } and a viewMode.

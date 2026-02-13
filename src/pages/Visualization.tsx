@@ -2,7 +2,7 @@
  * VisualizationPage
  *
  * The orchestration layer. Connects:
- *   URL → useTraversalRules → useGraphBuilder → GraphCanvas
+ *   URL → useTraversalRules → useGraphBuilder → GraphCanvas(name pending)
  *
  * Sidebar controls write back to the URL via setViewMode/setRule.
  * Product selection lives in its own component and navigates via URL.

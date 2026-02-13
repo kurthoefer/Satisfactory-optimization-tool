@@ -1,3 +1,4 @@
+//TODO size of the icons for the dropdown are controlled by this horrible string bellow lol
 import { forwardRef } from 'react';
 
 interface ProductGridProps {
@@ -11,7 +12,7 @@ export const ProductGrid = forwardRef<HTMLDivElement, ProductGridProps>(
         ref={ref}
         className='
           grid gap-2 p-3
-          grid-cols-[repeat(auto-fill,minmax(70px,1fr))]
+          grid-cols-[repeat(auto-fill,minmax(40px,1fr))]
         '
         role='presentation'
       >

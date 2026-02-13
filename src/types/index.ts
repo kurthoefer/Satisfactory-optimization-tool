@@ -1,8 +1,3 @@
-/**
- * Shared TypeScript types for Satisfactory Optimization Tool
- * Single source of truth for all data structures
- */
-
 // ============================================================================
 // PRODUCT TYPES
 // ============================================================================
@@ -19,10 +14,6 @@ export interface Product {
   radioactive: number;
   category: string;
 }
-
-// export interface ProductsByCategory {
-//   [category: string]: Product[];
-// }
 
 // ============================================================================
 // RECIPE TYPES
@@ -51,25 +42,6 @@ export interface Recipe {
   manualMultiplier: number;
   isVariable: boolean;
 }
-
-// ============================================================================
-// ORGANIZED RECIPE DATA STRUCTURE
-// ============================================================================
-
-// export interface CircularRelationships {
-//   stronglyConnectedComponents: string[][];
-//   circularItems: string[];
-//   circularRecipes: string[];
-// }
-
-// export interface RecipesOrganized {
-//   all: Recipe[];
-//   byProduct: { [className: string]: Recipe[] };
-//   byIngredient: { [className: string]: Recipe[] };
-//   byMachine: { [machine: string]: Recipe[] };
-//   alternates: Recipe[];
-//   circularRelationships: CircularRelationships;
-// }
 
 // ============================================================================
 // TOPOLOGY & GRAPH TYPES
