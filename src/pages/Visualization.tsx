@@ -12,8 +12,7 @@
 import { useTraversalRules } from '@/hooks/useTraversalRules';
 import { useGraphBuilder } from '@/hooks/useGraphBuilder';
 import ProductAutocomplete from '@/components/ProductAutocomplete';
-import GraphCanvas from '@/components/GraphCanvas';
-// import GraphCanvas from '@/components/GraphCanvas';
+import GraphCanvas from '@/components/graph/GraphCanvas';
 
 export default function VisualizationPage() {
   const { config, setViewMode, setRule } = useTraversalRules();
@@ -23,7 +22,7 @@ export default function VisualizationPage() {
   console.log('productSlug from URL:', config.targetSlug);
 
   return (
-    <div className='flex h-screen w-full bg-white text-slate-900'>
+    <div className='flex h-full w-full bg-white text-slate-900'>
       {/* SIDEBAR */}
       <aside className='w-72 border-r bg-slate-50 p-6 flex flex-col gap-6'>
         {/* Product Selection */}
