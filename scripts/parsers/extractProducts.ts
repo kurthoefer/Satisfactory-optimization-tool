@@ -1,216 +1,198 @@
+/**
+ * extractProducts.ts
+ *
+ * Discovers products by collecting every className referenced by recipes,
+ * then looks up each one in a universal index of all _docs.json entries.
+ *
+ * This ensures the product list is exactly "everything recipes reference" —
+ * no more, no less. No NativeClass guessing or hardcoded section filters.
+ *
+ * Items not found in _docs.json (28 legacy building classNames) are
+ * logged as warnings and skipped.
+ */
+
 import { slugify } from '../../src/utils/slugify';
 import type { Product } from '../../src/types';
+import type { GameSectionSchema } from '../types';
 
-// Internal Schema for Raw Data
-export interface GameItemSchema {
-  ClassName: string;
-  mDisplayName?: string;
-  mDescription?: string;
-  mForm?: string;
-  mStackSize?: string;
-  mEnergyValue?: string;
-  mRadioactiveDecay?: string;
-  NativeClass: string;
+// ============================================================================
+// UNIVERSAL INDEX
+// ============================================================================
+
+interface IndexEntry {
+  raw: Record<string, any>;
+  nativeClass: string;
 }
 
-export interface GameSectionSchema {
-  NativeClass: string;
-  Classes?: GameItemSchema[];
+/**
+ * Build a flat lookup of every className in _docs.json.
+ * Scans all sections regardless of NativeClass.
+ */
+function buildUniversalIndex(
+  docsData: GameSectionSchema[],
+): Map<string, IndexEntry> {
+  const index = new Map<string, IndexEntry>();
+
+  for (const section of docsData) {
+    if (!section.Classes) continue;
+    for (const item of section.Classes) {
+      if (item.ClassName) {
+        index.set(item.ClassName, {
+          raw: item,
+          nativeClass: section.NativeClass,
+        });
+      }
+    }
+  }
+
+  return index;
 }
 
-function categorizeItem(
-  item: GameItemSchema,
-  nativeClass: string,
-): string | null {
-  const className = item.ClassName;
-  const displayName = item.mDisplayName || '';
-  const description = item.mDescription || '';
-  const form = item.mForm || '';
+// ============================================================================
+// COLLECT RECIPE-REFERENCED PRODUCTS
+// ============================================================================
 
-  // Skip items without display names
-  if (!displayName) return null;
+/**
+ * Scan FGRecipe section for every Desc_*_C className
+ * appearing in ingredients or products.
+ */
+function collectReferencedProducts(docsData: GameSectionSchema[]): Set<string> {
+  const recipeSection = docsData.find((s) =>
+    s.NativeClass?.includes('FGRecipe'),
+  );
 
-  // Resources (mined directly)
-  if (nativeClass === "Class'/Script/FactoryGame.FGResourceDescriptor'") {
-    if (form === 'RF_LIQUID') return 'Liquids';
-    return 'Resources';
+  if (!recipeSection?.Classes) return new Set();
+
+  const referenced = new Set<string>();
+  const regex = /Desc_[A-Za-z0-9_-]+_C/g;
+
+  for (const recipe of recipeSection.Classes) {
+    for (const m of (recipe.mIngredients || '').matchAll(regex)) {
+      referenced.add(m[0]);
+    }
+    for (const m of (recipe.mProduct || '').matchAll(regex)) {
+      referenced.add(m[0]);
+    }
   }
 
-  // Equipment
+  return referenced;
+}
+
+// ============================================================================
+// CATEGORIZATION
+// ============================================================================
+
+/**
+ * Assign a category based on the item's NativeClass.
+ * NativeClass is the game engine's authoritative type declaration.
+ * Falls back to className pattern matching for FGItemDescriptor
+ * and FGBuildingDescriptor which contain mixed item types.
+ */
+function categorize(nativeClass: string, raw: Record<string, any>): string {
+  // Specific NativeClasses → direct category
+  if (nativeClass.includes('FGResourceDescriptor')) return 'Resources';
+  if (nativeClass.includes('FGAmmoType')) return 'Ammo';
+  if (nativeClass.includes('FGEquipmentDescriptor')) return 'Equipment';
+  if (nativeClass.includes('FGConsumableDescriptor')) return 'Consumables';
+  if (nativeClass.includes('FGVehicleDescriptor')) return 'Vehicles';
+  if (nativeClass.includes('FGItemDescriptorBiomass')) return 'Biomass';
+  if (nativeClass.includes('FGItemDescriptorNuclearFuel')) return 'Nuclear';
+  if (nativeClass.includes('FGPowerShardDescriptor')) return 'Power';
+  if (nativeClass.includes('FGItemDescriptorPowerBoosterFuel')) return 'Power';
+  if (nativeClass.includes('FGBuildingDescriptor')) return 'Buildings';
+
+  // FGItemDescriptor is the catch-all — subcategorize by className
+  const className = raw.ClassName || '';
+  const form = raw.mForm || '';
+
+  if (form === 'RF_LIQUID' || form === 'RF_GAS') return 'Fluids';
+  if (className.includes('Ingot')) return 'Ingots';
+  if (className.includes('Ore')) return 'Ores';
+  if (className.includes('Packaged')) return 'Packaged';
+  if (className.includes('SpaceElevatorPart')) return 'Space Elevator';
   if (
-    nativeClass === "Class'/Script/FactoryGame.FGEquipmentDescriptor'" ||
-    nativeClass === "Class'/Script/FactoryGame.FGConsumableDescriptor'"
-  ) {
-    return 'Equipment';
-  }
-
-  // Ammo
-  if (
-    className.includes('Cartridge') ||
-    className.includes('Nobelisk') ||
-    className.includes('Rebar') ||
-    description.toLowerCase().includes('ammo for')
-  ) {
-    return 'Ammo';
-  }
-
-  // FICSMAS items
-  if (
-    className.includes('Xmas') ||
-    className.includes('CandyCane') ||
-    className.includes('Snowball') ||
-    className.includes('Wreath') ||
-    className.includes('XmasBall') ||
-    className.includes('Gift')
-  ) {
-    return 'FICSMAS';
-  }
-
-  // Liquids
-  if (form === 'RF_LIQUID' || className.includes('Liquid')) {
-    return 'Liquids';
-  }
-
-  // Packaged items
-  if (className.includes('Packaged')) {
-    return 'Packaged';
-  }
-
-  // Ingots
-  if (className.includes('Ingot')) {
-    return 'Ingots';
-  }
-
-  // Ores
-  if (className.startsWith('Desc_Ore')) {
-    return 'Ores';
-  }
-
-  // Nuclear
-  if (
-    className.includes('Uranium') ||
-    className.includes('Plutonium') ||
     className.includes('Nuclear') ||
-    description.toLowerCase().includes('radioactive')
-  ) {
+    className.includes('Uranium') ||
+    className.includes('Plutonium')
+  )
     return 'Nuclear';
-  }
-
-  // Space Elevator Parts
-  if (className.includes('SpaceElevatorPart')) {
-    return 'Space Elevator Parts';
-  }
-
-  // Power/Energy
-  if (
-    className.includes('Battery') ||
-    className.includes('CrystalShard') ||
-    className.includes('Power')
-  ) {
-    return 'Power';
-  }
-
-  // Advanced Electronics
   if (
     className.includes('Computer') ||
     className.includes('Circuit') ||
-    (className.includes('Crystal') && className.includes('Oscillator')) ||
-    className.includes('RadioControl') ||
     className.includes('HighSpeed')
-  ) {
+  )
     return 'Electronics';
-  }
-
-  // Motors and Frames
-  if (
-    className.includes('Motor') ||
-    className.includes('ModularFrame') ||
-    className.includes('HeavyModularFrame')
-  ) {
-    return 'Industrial Parts';
-  }
-
-  // Basic Parts
+  if (className.includes('Motor') || className.includes('ModularFrame'))
+    return 'Industrial';
   if (
     className.includes('Plate') ||
     className.includes('Rod') ||
     className.includes('Screw') ||
     className.includes('Wire') ||
-    className.includes('Cable') ||
-    className.includes('Sheet') ||
-    className.includes('Beam') ||
-    className.includes('Pipe') ||
-    className.includes('Rotor') ||
-    className.includes('Stator')
-  ) {
+    className.includes('Cable')
+  )
     return 'Standard Parts';
-  }
 
-  // Materials
-  if (
-    className.includes('Concrete') ||
-    className.includes('Silica') ||
-    className.includes('Quartz') ||
-    className.includes('Rubber') ||
-    className.includes('Plastic') ||
-    className.includes('Fabric') ||
-    className.includes('Biomass')
-  ) {
-    return 'Materials';
-  }
-
-  // Alien/Special items
-  if (
-    className.includes('Alien') ||
-    className.includes('SAM') ||
-    className.includes('Mycelia') ||
-    className.includes('Hog') ||
-    className.includes('Hatcher') ||
-    className.includes('Spitter') ||
-    className.includes('Stinger')
-  ) {
-    return 'Alien';
-  }
-
-  return 'Other'; // Fallback
+  return 'Other';
 }
 
-/**
- * Extracts and categorizes products from raw game data.
- * Returns a flat Product[] — runtime grouping is handled by indexes.ts.
- */
+// ============================================================================
+// MAIN EXPORT
+// ============================================================================
+
 export function extractProducts(docsData: GameSectionSchema[]): Product[] {
+  // Step 1: Index everything in _docs.json
+  const universalIndex = buildUniversalIndex(docsData);
+
+  // Step 2: Collect every product className that recipes reference
+  const referenced = collectReferencedProducts(docsData);
+
+  // Step 3: Look up each referenced product and build Product entries
   const products: Product[] = [];
+  let found = 0;
+  let missing = 0;
 
-  docsData.forEach((section) => {
-    const nativeClass = section.NativeClass;
-    if (!nativeClass || !nativeClass.includes('Descriptor')) return;
+  for (const className of referenced) {
+    const entry = universalIndex.get(className);
 
-    section.Classes?.forEach((item) => {
-      const category = categorizeItem(item, nativeClass);
-      if (!category) return;
+    if (!entry) {
+      missing++;
+      continue;
+    }
 
-      const displayName = item.mDisplayName || '';
+    found++;
+    const { raw, nativeClass } = entry;
+    const displayName = raw.mDisplayName || '';
 
-      products.push({
-        id: item.ClassName.toLowerCase()
-          .replace(/_c$/, '')
-          .replace(/^desc_/, ''),
-        slug: slugify(displayName),
-        name: displayName,
-        className: item.ClassName,
-        description: item.mDescription || '',
-        form: item.mForm || 'RF_SOLID',
-        stackSize: item.mStackSize || 'SS_MEDIUM',
-        energyValue: parseFloat(item.mEnergyValue || '0'),
-        radioactive: parseFloat(item.mRadioactiveDecay || '0'),
-        category,
-      });
+    // Skip items with no display name (some building descriptors)
+    if (!displayName) {
+      continue;
+    }
+
+    products.push({
+      id: className
+        .toLowerCase()
+        .replace(/_c$/, '')
+        .replace(/^desc_/, ''),
+      slug: slugify(displayName),
+      name: displayName,
+      className,
+      description: raw.mDescription || '',
+      form: raw.mForm || 'RF_SOLID',
+      stackSize: raw.mStackSize || 'SS_MEDIUM',
+      energyValue: parseFloat(raw.mEnergyValue || '0'),
+      radioactive: parseFloat(raw.mRadioactiveDecay || '0'),
+      category: categorize(nativeClass, raw),
+      tier: null, // Enriched later by buildGameData from schematic data
     });
-  });
+  }
 
   // Sort alphabetically
   products.sort((a, b) => a.name.localeCompare(b.name));
+
+  console.log(
+    `   - Resolved ${found}/${referenced.size} referenced products (${missing} orphaned).`,
+  );
 
   return products;
 }

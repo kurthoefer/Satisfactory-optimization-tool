@@ -55,6 +55,11 @@ export function createForceLayout(
     rotationConfig,
   } = options;
 
+  console.log(
+    'these are the options just before they are handed to the simulation',
+    options,
+  );
+
   // --- Simulation ---
   const simulation = d3
     .forceSimulation<GraphNode>(nodes)

@@ -1,4 +1,5 @@
 import type { Recipe, RecipeIngredient } from '../../src/types';
+import type { GameSectionSchema } from '../types';
 
 // Internal Schema
 interface GameRecipeSchema {
@@ -12,32 +13,22 @@ interface GameRecipeSchema {
   mVariablePowerConsumptionConstant?: string;
 }
 
-export interface GameSectionSchema {
-  NativeClass: string;
-  Classes?: GameRecipeSchema[];
-}
-
-// Helper to extract className from blueprint path
-function extractClassName(blueprintPath: string): string | null {
-  const match = blueprintPath.match(/Desc_[^.]+_C/);
-  return match ? match[0] : null;
-}
-
 // Parse ingredient/product strings
 function parseItemList(itemString?: string): RecipeIngredient[] {
   if (!itemString || itemString === '()') return [];
 
   const items: RecipeIngredient[] = [];
-  const regex =
-    /ItemClass=BlueprintGeneratedClass'([^']+)',Amount=(\d+(?:\.\d+)?)/g;
-  let match;
+  const entries = itemString.split('),(');
 
-  while ((match = regex.exec(itemString)) !== null) {
-    const className = extractClassName(match[1]);
-    const amount = parseFloat(match[2]);
+  for (const entry of entries) {
+    const classMatch = entry.match(/Desc_[A-Za-z0-9_-]+_C/);
+    const amountMatch = entry.match(/Amount=(\d+(?:\.\d+)?)/);
 
-    if (className) {
-      items.push({ className, amount });
+    if (classMatch && amountMatch) {
+      items.push({
+        className: classMatch[0],
+        amount: parseFloat(amountMatch[1]),
+      });
     }
   }
 
@@ -83,15 +74,17 @@ export function extractRecipes(docsData: GameSectionSchema[]): Recipe[] {
   const recipes: Recipe[] = [];
 
   // Find recipe section
-  const recipeSection = docsData.find(
-    (section) => section.NativeClass === "Class'/Script/FactoryGame.FGRecipe'",
+  const recipeSection = docsData.find((section) =>
+    section.NativeClass?.includes('FGRecipe'),
   );
 
   if (!recipeSection || !recipeSection.Classes) {
     throw new Error('Could not find recipe section in game data');
   }
 
-  recipeSection.Classes.forEach((recipe) => {
+  const recipeEntries = recipeSection.Classes as unknown as GameRecipeSchema[];
+
+  recipeEntries.forEach((recipe) => {
     const className = recipe.ClassName;
     const displayName = recipe.mDisplayName;
 
@@ -121,6 +114,7 @@ export function extractRecipes(docsData: GameSectionSchema[]): Recipe[] {
         recipe.mManualManufacturingMultiplier || '1',
       ),
       isVariable: !!recipe.mVariablePowerConsumptionConstant,
+      tier: null,
     };
 
     recipes.push(recipeData);

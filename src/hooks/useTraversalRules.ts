@@ -3,10 +3,10 @@
  *
  * Reads the URL and produces a single config object that drives
  * everything downstream: the graph builder, the sidebar display,
- * and the canvas rendering mode.
+ * persistence computation, and the canvas rendering.
  *
  * URL contract:
- *   /visualize/:productSlug?mode=focused&alternates=true&baseResources=false
+ *   /visualize/:productSlug?alternates=true&converter=false&maxTier=5&baseResources=false
  *
  * This hook is the ONLY place that reads route params.
  * Everything else consumes the config object it returns.
@@ -19,11 +19,11 @@ import { productsBySlug } from '@/data/indexes';
 // TYPES
 // ============================================================================
 
-export type ViewMode = 'focused' | 'bigpicture';
-
 export interface TraversalRules {
   includeAlternates: boolean;
   includeBaseResources: boolean;
+  includeConverter: boolean;
+  maxTier: number | null; // null = unlimited
 }
 
 export interface TraversalConfig {
@@ -33,9 +33,7 @@ export interface TraversalConfig {
   targetName: string | null;
   /** The slug as it appears in the URL, e.g. "iron-plate" */
   targetSlug: string | null;
-  /** Render everything (dimmed) or only the focused subgraph */
-  viewMode: ViewMode;
-  /** Constraints applied during the upstream walk */
+  /** Constraints applied during the upstream walk AND persistence computation */
   rules: TraversalRules;
 }
 
@@ -43,9 +41,10 @@ export interface TraversalConfig {
 // DEFAULTS
 // ============================================================================
 
-const DEFAULT_VIEW_MODE: ViewMode = 'focused';
 const DEFAULT_INCLUDE_ALTERNATES = false;
 const DEFAULT_INCLUDE_BASE_RESOURCES = true;
+const DEFAULT_INCLUDE_CONVERTER = true;
+const DEFAULT_MAX_TIER: number | null = null;
 
 // ============================================================================
 // HOOK
@@ -53,8 +52,10 @@ const DEFAULT_INCLUDE_BASE_RESOURCES = true;
 
 export function useTraversalRules(): {
   config: TraversalConfig;
-  setViewMode: (mode: ViewMode) => void;
-  setRule: (key: keyof TraversalRules, value: boolean) => void;
+  setRule: <K extends keyof TraversalRules>(
+    key: K,
+    value: TraversalRules[K],
+  ) => void;
 } {
   const { productSlug } = useParams<{ productSlug: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -65,11 +66,6 @@ export function useTraversalRules(): {
     : null;
 
   // --- Read search params with defaults ---
-  const viewMode: ViewMode =
-    searchParams.get('mode') === 'bigpicture'
-      ? 'bigpicture'
-      : DEFAULT_VIEW_MODE;
-
   const includeAlternates =
     searchParams.get('alternates') === 'true' || DEFAULT_INCLUDE_ALTERNATES;
 
@@ -78,36 +74,36 @@ export function useTraversalRules(): {
       ? false
       : DEFAULT_INCLUDE_BASE_RESOURCES;
 
+  const includeConverter =
+    searchParams.get('converter') === 'false'
+      ? false
+      : DEFAULT_INCLUDE_CONVERTER;
+
+  const maxTierParam = searchParams.get('maxTier');
+  const maxTier: number | null =
+    maxTierParam !== null ? parseInt(maxTierParam, 10) : DEFAULT_MAX_TIER;
+
   // --- Build config ---
   const config: TraversalConfig = {
     targetClassName: product?.className ?? null,
     targetName: product?.name ?? null,
     targetSlug: productSlug ?? null,
-    viewMode,
     rules: {
       includeAlternates,
       includeBaseResources,
+      includeConverter,
+      maxTier,
     },
   };
 
-  // --- URL writers ---
-  const setViewMode = (mode: ViewMode) => {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      if (mode === DEFAULT_VIEW_MODE) {
-        next.delete('mode');
-      } else {
-        next.set('mode', mode);
-      }
-      return next;
-    });
-  };
-
-  const setRule = (key: keyof TraversalRules, value: boolean) => {
+  // --- URL writer ---
+  const setRule = <K extends keyof TraversalRules>(
+    key: K,
+    value: TraversalRules[K],
+  ) => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
 
-      // Only put non-default values in the URL to keep it clean
       if (key === 'includeAlternates') {
         value !== DEFAULT_INCLUDE_ALTERNATES
           ? next.set('alternates', String(value))
@@ -120,9 +116,21 @@ export function useTraversalRules(): {
           : next.delete('baseResources');
       }
 
+      if (key === 'includeConverter') {
+        value !== DEFAULT_INCLUDE_CONVERTER
+          ? next.set('converter', String(value))
+          : next.delete('converter');
+      }
+
+      if (key === 'maxTier') {
+        value !== DEFAULT_MAX_TIER
+          ? next.set('maxTier', String(value))
+          : next.delete('maxTier');
+      }
+
       return next;
     });
   };
 
-  return { config, setViewMode, setRule };
+  return { config, setRule };
 }

@@ -2,14 +2,13 @@
  * GraphCanvas.tsx
  *
  * Rendering terminal for the graph visualization.
- * Receives pre-tagged { nodes, links } and a viewMode.
+ * Receives pre-filtered { nodes, links } from the graph builder.
  *
  * Orchestrates:
  *   1. SVG setup and zoom
- *   2. Data filtering (focused vs big-picture)
- *   3. Rendering (delegated to drawLinks + drawNodes)
- *   4. Layout (delegated to forceLayout, future: sugiyamaLayout)
- *   5. Hover tooltip (React panel, driven by D3 mouse events)
+ *   2. Rendering (delegated to drawLinks + drawNodes)
+ *   3. Layout (delegated to forceLayout, future: d3-dag)
+ *   4. Hover tooltip (React panel, driven by D3 mouse events)
  *
  * Does NOT know about products, recipes, URLs, or traversal rules.
  * Data goes in, visuals come out, interactions bubble up.
@@ -19,7 +18,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 
 import type { GraphNode, GraphEdge } from '@/types';
-import type { ViewMode } from '@/hooks/useTraversalRules';
 import { drawLinks } from './renderers/drawLinks';
 import { drawNodes } from './renderers/drawNodes';
 import { createForceLayout } from './layouts/forceLayout';
@@ -31,7 +29,6 @@ import { createForceLayout } from './layouts/forceLayout';
 interface GraphCanvasProps {
   nodes: GraphNode[];
   links: GraphEdge[];
-  viewMode: ViewMode;
   onNodeClick?: (nodeId: string) => void;
 }
 
@@ -42,7 +39,6 @@ interface GraphCanvasProps {
 export default function GraphCanvas({
   nodes,
   links,
-  viewMode,
   onNodeClick,
 }: GraphCanvasProps) {
   const svgRef = useRef<SVGSVGElement>(null);
@@ -78,25 +74,9 @@ export default function GraphCanvas({
         }),
     );
 
-    // --- Filter data based on view mode ---
-    const visibleNodes =
-      viewMode === 'focused' ? nodes.filter((n) => n.focus) : nodes;
-
-    const visibleNodeIds = new Set(visibleNodes.map((n) => n.id));
-
-    const visibleLinks = links.filter(
-      (l) =>
-        visibleNodeIds.has(
-          typeof l.source === 'string' ? l.source : l.source.id,
-        ) &&
-        visibleNodeIds.has(
-          typeof l.target === 'string' ? l.target : l.target.id,
-        ),
-    );
-
     // --- Render (order matters: links behind nodes) ---
-    const linkSelection = drawLinks(g, visibleLinks);
-    const nodeSelection = drawNodes(g, visibleNodes);
+    const linkSelection = drawLinks(g, links);
+    const nodeSelection = drawNodes(g, nodes);
 
     // --- Hover events ---
     nodeSelection
@@ -107,8 +87,8 @@ export default function GraphCanvas({
     const { cleanup } = createForceLayout({
       width,
       height,
-      nodes: visibleNodes,
-      links: visibleLinks,
+      nodes,
+      links,
       nodeSelection,
       linkSelection,
       onNodeClick,
@@ -120,7 +100,7 @@ export default function GraphCanvas({
       cleanup();
       cleanupRef.current = null;
     };
-  }, [nodes, links, viewMode, onNodeClick, onHover]);
+  }, [nodes, links, onNodeClick, onHover]);
 
   return (
     <div className='absolute inset-0 overflow-hidden'>

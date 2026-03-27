@@ -13,6 +13,7 @@ export interface Product {
   energyValue: number;
   radioactive: number;
   category: string;
+  tier: number | null;
 }
 
 // ============================================================================
@@ -41,6 +42,7 @@ export interface Recipe {
   isAlternate: boolean;
   manualMultiplier: number;
   isVariable: boolean;
+  tier: number | null;
 }
 
 // ============================================================================
@@ -62,6 +64,19 @@ export interface TopologicalManifest {
     sccCount: number;
   };
   edges: TopologicalEdge[]; // The metric space
+  nodeScores: Record<string, number>; // PageRank persistence (0–1)
+  /**
+   * SCCs and circularItems are computed from the FULL production graph
+   * (all machines, all tiers, all recipe types).
+   *
+   * These serve as defaults for initial render only. When the user
+   * applies filters (TraversalRules), SCCs must be recomputed
+   * client-side on the filtered edge set — Converter exclusion,
+   * tier limits, and alternate toggling all change cycle structure.
+   *
+   * TODO: Runtime SCC detection (Tarjan's on filtered TopologicalEdge[])
+   * needed before d3-dag integration.
+   */
   sccs: string[][]; // The loops
   circularItems: string[]; // Fast lookup for loop participants
 }

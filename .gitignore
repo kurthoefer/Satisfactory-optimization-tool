@@ -31,9 +31,5 @@ project_structure.txt
 condensationGraphOld.ts
 
 # Generated
-src/data/products-flat.json
-src/data/products.json
-src/data/recipes.json
-src/data/recipes-index.json
-src/data/recipes-organized.json
-src/data/topology.json
+_docs.json
+src/data/*.json
