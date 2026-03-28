@@ -5,14 +5,15 @@
  * These maps are the only way the rest of the app should access
  * products, recipes, and topology edges — never import the JSON directly.
  *
- * Seven indexes, seven questions they answer:
+ * Eight indexes, eight questions they answer:
  *   productsBySlug         → "User navigated to /visualize/concrete — which product is that?"
  *   productsByClassName    → "Topology says Desc_Cement_C — which product is that?"
  *   productsByCategory     → "Give me all products grouped by category" (product selector UI)
  *   recipesByClassName     → "Topology says Recipe_IronPlate_C — which recipe is that?"
- *   edgesByTarget          → "What edges point INTO this node?" (upstream traversal)
  *   baseResourceClassNames → "Is this product a leaf node with no recipe producing it?"
- *   sccGroupByClassName    → "Does this node belong to a cycle, and which one?"
+ *   sccGroupByClassName    → "Does this node belong to a cycle, and which one?" (full-graph default)
+ *   fullGraphNodeScores    → "What is this node's precomputed persistence score?"
+ *   allEdges               → "Give me the full edge set for filtering and traversal"
  */
 
 import type { Product, Recipe, TopologicalEdge } from '@/types';
@@ -62,30 +63,6 @@ export const recipesByClassName = new Map<string, Recipe>(
 );
 
 // ============================================================================
-// EDGE INDEX
-// ============================================================================
-
-/**
- * Given a node ID, return all edges that point INTO it.
- *
- * This is the core index for upstream traversal:
- *   edgesByTarget.get("Recipe_IronPlate_C")
- *     → edges where ingredients flow into that recipe
- *   edgesByTarget.get("Desc_IronPlate_C")
- *     → edges where recipes produce that product
- */
-export const edgesByTarget = new Map<string, TopologicalEdge[]>();
-
-allEdges.forEach((edge) => {
-  const existing = edgesByTarget.get(edge.targetId);
-  if (existing) {
-    existing.push(edge);
-  } else {
-    edgesByTarget.set(edge.targetId, [edge]);
-  }
-});
-
-// ============================================================================
 // BASE RESOURCE DETECTION (Structural)
 // ============================================================================
 
@@ -100,7 +77,6 @@ allEdges.forEach((edge) => {
 const producedByRecipe = new Set<string>();
 
 allEdges.forEach((edge) => {
-  // An edge from a recipe to a product means the recipe produces that product.
   if (
     recipesByClassName.has(edge.sourceId) &&
     productsByClassName.has(edge.targetId)
@@ -116,12 +92,16 @@ export const baseResourceClassNames = new Set<string>(
 );
 
 // ============================================================================
-// SCC GROUP INDEX
+// SCC GROUP INDEX (Full-graph default)
 // ============================================================================
 
 /**
  * Maps a className to its SCC group index (position in topology.sccs array).
  * Nodes sharing the same group index are in the same cycle.
+ *
+ * IMPORTANT: This reflects the FULL unfiltered production graph.
+ * When the user applies filters (TraversalRules), SCCs must be
+ * recomputed client-side on the filtered edge set.
  *
  * Returns undefined for nodes not in any cycle — use:
  *   sccGroupByClassName.get(className) ?? null
@@ -137,7 +117,23 @@ allSCCs.forEach((group, groupIndex) => {
 });
 
 // ============================================================================
-// RAW COLLECTIONS (for full-graph assembly)
+// PERSISTENCE (Full-graph default)
 // ============================================================================
 
-export { allProducts, allRecipes, allEdges };
+/**
+ * Precomputed PageRank scores from the full production graph.
+ * Used as the "full" context in PersistenceScores.
+ *
+ * Filtered and subgraph persistence are computed at runtime
+ * by useGraphBuilder when filters or target change.
+ */
+export const fullGraphNodeScores = (topologyData.nodeScores ?? {}) as Record<
+  string,
+  number
+>;
+
+// ============================================================================
+// RAW EDGE SET (for filtering and traversal)
+// ============================================================================
+
+export { allEdges };

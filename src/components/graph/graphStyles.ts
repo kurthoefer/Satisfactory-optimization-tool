@@ -27,14 +27,6 @@ export const NODE_STYLES = {
     stroke: '#fff',
     strokeWidth: 1.5,
   },
-
-  unfocused: {
-    radius: 4,
-    fill: '#cbd5e1',
-    stroke: 'none',
-    strokeWidth: 0,
-    opacity: 0.3,
-  },
 } as const;
 
 // ============================================================================
@@ -43,8 +35,7 @@ export const NODE_STYLES = {
 
 export const LINK_STYLES = {
   stroke: '#94a3b8',
-  focusedOpacity: 0.6,
-  unfocusedOpacity: 0.1,
+  Opacity: 0.6,
 } as const;
 
 // ============================================================================
@@ -86,13 +77,4 @@ export function vesicaPiscisPath(width: number, height: number): string {
 export const RECIPE_PATH = vesicaPiscisPath(
   NODE_STYLES.recipe.width,
   NODE_STYLES.recipe.height,
-);
-
-/**
- * Smaller vesica piscis for unfocused recipe nodes.
- * Matches the unfocused circle radius proportionally.
- */
-export const RECIPE_PATH_UNFOCUSED = vesicaPiscisPath(
-  NODE_STYLES.unfocused.radius * 2.5,
-  NODE_STYLES.unfocused.radius * 1.25,
 );

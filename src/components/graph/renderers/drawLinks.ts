@@ -4,6 +4,10 @@
  * Appends link <line> elements to the SVG.
  * Returns the selection for tick updates.
  *
+ * Stroke width scales with throughput — thicker lines
+ * carry more material. This is the primary "feel the volume"
+ * visual channel.
+ *
  * Pure rendering — no layout or simulation logic.
  */
 
@@ -27,10 +31,10 @@ export type LinkSelection = d3.Selection<
 // ============================================================================
 
 /**
- * Draw all visible links into the given SVG <g> container.
+ * Draw all links into the given SVG <g> container.
  *
- * Focused links are styled with opacity and width scaled by throughput.
- * Unfocused links are faint hairlines.
+ * Width scales with throughput (log scale to tame extremes).
+ * All links are rendered — filtering happens upstream in the graph builder.
  */
 export function drawLinks(
   container: d3.Selection<SVGGElement, unknown, null, undefined>,
@@ -43,10 +47,6 @@ export function drawLinks(
     .data(links)
     .join('line')
     .attr('stroke', LINK_STYLES.stroke)
-    .attr('stroke-opacity', (d) =>
-      d.focus ? LINK_STYLES.focusedOpacity : LINK_STYLES.unfocusedOpacity,
-    )
-    .attr('stroke-width', (d) =>
-      d.focus ? Math.max(1, Math.log10(d.throughput + 1) * 2) : 0.5,
-    );
+    .attr('stroke-opacity', LINK_STYLES.Opacity)
+    .attr('stroke-width', (d) => Math.max(1, Math.log10(d.throughput + 1) * 2));
 }

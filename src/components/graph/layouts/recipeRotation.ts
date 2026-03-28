@@ -11,10 +11,9 @@
  *   2. computeRecipeAngle  — pure math: given in/out centroids and the
  *                            node's own position, returns degrees.
  *   3. createRotationUpdater — alpha-gated: reads simulation energy to
- *                              decide what to rotate and how often.
- *                              Focused recipes rotate frequently at all
- *                              alpha states. Unfocused recipes are off
- *                              during chaos, slow when calm.
+ *                              throttle rotation recomputation.
+ *                              High alpha (chaotic) = less frequent.
+ *                              Low alpha (settled) = more frequent.
  */
 
 import type { GraphNode, GraphEdge } from '@/types';
@@ -140,36 +139,33 @@ function centroid(
  * Tuning knobs for rotation frequency at different simulation states.
  *
  * Alpha ranges from ~1.0 (chaotic) toward 0 (settled).
- * These control how often rotation is recomputed per tier.
  */
 export interface RotationConfig {
   /** Alpha above which the simulation is considered chaotic. Default: 0.3 */
   chaoticThreshold: number;
 
-  /** Tick interval for focused recipe rotation. Default: 8 */
-  focusedInterval: number;
+  /** Tick interval for rotation when simulation is calm. Default: 8 */
+  calmInterval: number;
 
-  /** Tick interval for unfocused recipes when simulation is calm. Default: 30 */
-  unfocusedInterval: number;
+  /** Tick interval for rotation when simulation is chaotic. Default: 20 */
+  chaoticInterval: number;
 }
 
 const DEFAULT_ROTATION_CONFIG: RotationConfig = {
   chaoticThreshold: 0.3,
-  focusedInterval: 8,
-  unfocusedInterval: 30,
+  calmInterval: 8,
+  chaoticInterval: 20,
 };
 
 /**
  * Creates an alpha-gated rotation function.
  *
  * Behavior by simulation state:
- *   - Chaotic (alpha > threshold): Focused recipes rotate at focusedInterval.
- *     Unfocused recipes are skipped entirely.
- *   - Calm (alpha ≤ threshold): Focused recipes rotate at focusedInterval.
- *     Unfocused recipes rotate at unfocusedInterval.
+ *   - Chaotic (alpha > threshold): rotate less frequently (positions unstable)
+ *   - Calm (alpha ≤ threshold): rotate more frequently (positions settling)
  *
- * The simulation reference is needed to read alpha on each tick.
- * Pass it in after the simulation is created.
+ * visuallyHidden nodes are excluded from rotation computation
+ * but still receive translate transforms for correct positioning.
  */
 export function createRotationUpdater(
   nodes: GraphNode[],
@@ -178,7 +174,7 @@ export function createRotationUpdater(
   getAlpha: () => number,
   config: Partial<RotationConfig> = {},
 ) {
-  const { chaoticThreshold, focusedInterval, unfocusedInterval } = {
+  const { chaoticThreshold, calmInterval, chaoticInterval } = {
     ...DEFAULT_ROTATION_CONFIG,
     ...config,
   };
@@ -186,17 +182,13 @@ export function createRotationUpdater(
   const neighborIndex = buildNeighborIndex(nodes, links);
   const nodeById = new Map(nodes.map((n) => [n.id, n]));
 
-  // Partition recipe IDs by focus for independent tick scheduling
-  const focusedRecipeIds: string[] = [];
-  const unfocusedRecipeIds: string[] = [];
-
+  // Collect recipe IDs that are visible (not hidden)
+  const visibleRecipeIds: string[] = [];
   for (const [recipeId] of neighborIndex) {
     const node = nodeById.get(recipeId);
     if (!node) continue;
-    if (node.focus) {
-      focusedRecipeIds.push(recipeId);
-    } else {
-      unfocusedRecipeIds.push(recipeId);
+    if (!node.visuallyHidden) {
+      visibleRecipeIds.push(recipeId);
     }
   }
 
@@ -233,22 +225,17 @@ export function createRotationUpdater(
   }
 
   /**
-   * Call every tick. Reads alpha to decide what to rotate.
+   * Call every tick. Reads alpha to decide rotation frequency.
    * Always applies translate + cached rotation to all nodes.
    */
   return function onTick() {
     tickCount++;
     const alpha = getAlpha();
     const isChaotic = alpha > chaoticThreshold;
+    const interval = isChaotic ? chaoticInterval : calmInterval;
 
-    // Focused recipes: always rotate at their interval
-    if (tickCount % focusedInterval === 0) {
-      updateAngles(focusedRecipeIds);
-    }
-
-    // Unfocused recipes: only when calm, at a slower rate
-    if (!isChaotic && tickCount % unfocusedInterval === 0) {
-      updateAngles(unfocusedRecipeIds);
+    if (tickCount % interval === 0) {
+      updateAngles(visibleRecipeIds);
     }
 
     // Apply transform: translate + cached rotation

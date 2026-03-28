@@ -1,37 +1,43 @@
 /**
  * useGraphBuilder
  *
- * Takes a TraversalConfig and returns the full tagged graph
- * ready for D3 consumption.
+ * The orchestration layer between domain rules and visual data.
+ * Translates TraversalRules into a fully computed graph
+ * ready for GraphCanvas consumption.
  *
- * Two phases:
- *   Phase 1 — WALK: BFS upstream from the target product,
- *             respecting traversal rules. Produces a Set of
- *             focused classNames.
+ * GraphCanvas receives nodes and links — it never needs to know
+ * about filters, tiers, persistence algorithms, or game concepts.
  *
- *   Phase 2 — ASSEMBLY: Builds GraphNode[] and GraphEdge[]
- *             for the entire graph, tagging each with focus: true/false
- *             based on the walk results.
- *
- * Future: SCC collapsing would sit between Phase 1 and Phase 2
- * as a transform on the focusedIds set and the node assembly logic.
+ * Four phases:
+ *   1. FILTER  — apply data filters to the edge set
+ *   2. WALK    — BFS upstream from target through filtered edges
+ *   3. COMPUTE — persistence (3 contexts) + SCC detection
+ *   4. ASSEMBLE — build GraphNode[] and GraphEdge[] for D3
  */
 
 import { useMemo } from 'react';
 
-import type { GraphNode, GraphEdge, TopologicalEdge } from '@/types';
-import type { TraversalConfig } from '@/hooks/useTraversalRules';
+import type {
+  GraphNode,
+  GraphEdge,
+  TopologicalEdge,
+  PersistenceScores,
+} from '@/types';
+import type {
+  TraversalConfig,
+  TraversalRules,
+} from '@/hooks/useTraversalRules';
 
 import {
   productsByClassName,
   recipesByClassName,
-  edgesByTarget,
-  baseResourceClassNames,
-  allProducts,
-  allRecipes,
   allEdges,
-  sccGroupByClassName,
+  baseResourceClassNames,
 } from '@/data/indexes';
+
+// Full-graph persistence (precomputed at build time)
+import topologyData from '@/data/topology.json';
+const fullGraphNodeScores = topologyData.nodeScores as Record<string, number>;
 
 // ============================================================================
 // TYPES
@@ -40,142 +46,231 @@ import {
 export interface GraphBuilderResult {
   nodes: GraphNode[];
   links: GraphEdge[];
-  /** Exposed for debugging / UI stats */
-  focusedCount: number;
 }
 
 // ============================================================================
-// PHASE 1: UPSTREAM WALK
+// PHASE 1: FILTER EDGES
 // ============================================================================
 
 /**
- * BFS upstream from a target product.
- * Returns the set of all classNames reachable by walking
- * backward through the dependency chain.
+ * Apply data filters to the full edge set.
+ * Returns edges that survive the current TraversalRules.
+ *
+ * An edge connects a product to a recipe (or vice versa).
+ * We filter by checking the recipe on each edge.
+ */
+function filterEdges(
+  edges: TopologicalEdge[],
+  rules: TraversalRules,
+): TopologicalEdge[] {
+  return edges.filter((edge) => {
+    // Find the recipe on this edge (could be source or target)
+    const recipe =
+      recipesByClassName.get(edge.sourceId) ??
+      recipesByClassName.get(edge.targetId);
+
+    // Edge between two products with no recipe — keep it
+    if (!recipe) return true;
+
+    // Alternate filter
+    if (!rules.includeAlternates && recipe.isAlternate) return false;
+
+    // Converter filter
+    if (!rules.includeConverter && recipe.producedIn === 'Converter')
+      return false;
+
+    // Tier filter
+    if (
+      rules.maxTier !== null &&
+      recipe.tier !== null &&
+      recipe.tier > rules.maxTier
+    )
+      return false;
+
+    return true;
+  });
+}
+
+// ============================================================================
+// PHASE 2: WALK
+// ============================================================================
+
+/**
+ * BFS upstream from a target product through filtered edges.
+ * Returns the set of all reachable node classNames.
  */
 function walkUpstream(
   targetClassName: string,
-  rules: TraversalConfig['rules'],
+  filteredEdges: TopologicalEdge[],
+  includeBaseResources: boolean,
 ): Set<string> {
-  const focused = new Set<string>();
-  const queue: string[] = [targetClassName];
-
-  focused.add(targetClassName);
-
-  while (queue.length > 0) {
-    const currentProduct = queue.shift()!;
-
-    // "What recipes produce this product?"
-    // Edges where a recipe (source) flows into this product (target)
-    const incomingEdges = edgesByTarget.get(currentProduct) ?? [];
-
-    for (const edge of incomingEdges) {
-      const recipeClassName = edge.sourceId;
-
-      // Must actually be a recipe (not a product feeding into another product)
-      if (!recipesByClassName.has(recipeClassName)) continue;
-
-      // Already visited — skip (handles circular dependencies)
-      if (focused.has(recipeClassName)) continue;
-
-      // Rule: alternate recipes
-      const recipe = recipesByClassName.get(recipeClassName)!;
-      if (recipe.isAlternate && !rules.includeAlternates) continue;
-
-      // Recipe passes — mark it focused
-      focused.add(recipeClassName);
-
-      // "What ingredients does this recipe need?"
-      // Edges where products (source) flow into this recipe (target)
-      const ingredientEdges = edgesByTarget.get(recipeClassName) ?? [];
-
-      for (const ingredientEdge of ingredientEdges) {
-        const ingredientClassName = ingredientEdge.sourceId;
-
-        // Must actually be a product
-        if (!productsByClassName.has(ingredientClassName)) continue;
-
-        // Already visited
-        if (focused.has(ingredientClassName)) continue;
-
-        // Rule: base resources
-        const isBaseResource = baseResourceClassNames.has(ingredientClassName);
-
-        if (isBaseResource) {
-          if (rules.includeBaseResources) {
-            // Include it but don't recurse — it's a leaf
-            focused.add(ingredientClassName);
-          }
-          // Either way, don't queue it for further traversal
-          continue;
-        }
-
-        // Regular product — focus it and continue walking upstream
-        focused.add(ingredientClassName);
-        queue.push(ingredientClassName);
-      }
+  // Build a local edgesByTarget index from filtered edges
+  const edgesByTarget = new Map<string, TopologicalEdge[]>();
+  for (const edge of filteredEdges) {
+    const existing = edgesByTarget.get(edge.targetId);
+    if (existing) {
+      existing.push(edge);
+    } else {
+      edgesByTarget.set(edge.targetId, [edge]);
     }
   }
 
-  return focused;
+  const reachable = new Set<string>();
+  const queue: string[] = [targetClassName];
+  reachable.add(targetClassName);
+
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+
+    const incomingEdges = edgesByTarget.get(current) ?? [];
+
+    for (const edge of incomingEdges) {
+      const upstreamId = edge.sourceId;
+
+      if (reachable.has(upstreamId)) continue;
+
+      // Check if this is a base resource
+      const isBaseResource = baseResourceClassNames.has(upstreamId);
+
+      if (isBaseResource) {
+        if (includeBaseResources) {
+          reachable.add(upstreamId);
+        }
+        // Don't recurse past base resources — they're leaves
+        continue;
+      }
+
+      reachable.add(upstreamId);
+      queue.push(upstreamId);
+    }
+  }
+
+  return reachable;
 }
 
 // ============================================================================
-// PHASE 2: ASSEMBLY
+// PHASE 3: COMPUTE
 // ============================================================================
 
 /**
- * Builds the full node and link arrays for D3.
- * Every product and recipe becomes a node.
- * Every edge becomes a link.
- * Each is tagged with focus based on the walk results.
+ * Compute persistence scores and SCC groups for the current context.
+ *
+ * TODO: Implement runtime PageRank (computePersistence adapted for client)
+ * TODO: Implement runtime SCC detection (Tarjan's on TopologicalEdge[])
+ *
+ * For now, uses precomputed full-graph scores as placeholder
+ * for all three persistence contexts.
  */
-function assembleGraph(focusedIds: Set<string>): {
-  nodes: GraphNode[];
-  links: GraphEdge[];
+function computeGraphMetrics(
+  filteredEdges: TopologicalEdge[],
+  walkedEdges: TopologicalEdge[],
+): {
+  filteredNodeScores: Record<string, number>;
+  subgraphNodeScores: Record<string, number>;
+  sccGroups: Map<string, number>;
 } {
+  // TODO: Runtime PageRank on filteredEdges → filteredNodeScores
+  // TODO: Runtime PageRank on walkedEdges → subgraphNodeScores
+  // TODO: Runtime Tarjan's on filteredEdges → sccGroups
+
+  // Placeholder: use full-graph scores for all contexts
+  return {
+    filteredNodeScores: fullGraphNodeScores,
+    subgraphNodeScores: fullGraphNodeScores,
+    sccGroups: new Map(),
+  };
+}
+
+// ============================================================================
+// PHASE 4: ASSEMBLE
+// ============================================================================
+
+/**
+ * Build GraphNode[] and GraphEdge[] from walked node IDs and filtered edges.
+ * Attaches persistence scores, SCC groups, and visual flags.
+ */
+function assembleGraph(
+  reachableIds: Set<string>,
+  filteredEdges: TopologicalEdge[],
+  filteredNodeScores: Record<string, number>,
+  subgraphNodeScores: Record<string, number>,
+  sccGroups: Map<string, number>,
+  includeBaseResources: boolean,
+): { nodes: GraphNode[]; links: GraphEdge[] } {
   // --- Nodes ---
   const nodes: GraphNode[] = [];
 
-  for (const product of allProducts) {
-    nodes.push({
-      id: product.className,
-      x: 0,
-      y: 0,
-      vx: 0,
-      vy: 0,
-      payload: { type: 'product', data: product },
-      stressScore: 0,
-      degree: 0,
-      focus: focusedIds.has(product.className),
-      sccGroupId: sccGroupByClassName.get(product.className) ?? null,
-    });
-  }
+  for (const id of reachableIds) {
+    const product = productsByClassName.get(id);
+    const recipe = recipesByClassName.get(id);
 
-  for (const recipe of allRecipes) {
+    const isBaseResource = baseResourceClassNames.has(id);
+
+    const persistence: PersistenceScores = {
+      full: fullGraphNodeScores[id] ?? 0,
+      filtered: filteredNodeScores[id] ?? 0,
+      subgraph: subgraphNodeScores[id] ?? 0,
+    };
+
     nodes.push({
-      id: recipe.className,
-      x: 0,
-      y: 0,
-      vx: 0,
-      vy: 0,
-      payload: { type: 'recipe', data: recipe },
-      stressScore: 0,
-      degree: 0,
-      focus: focusedIds.has(recipe.className),
-      sccGroupId: sccGroupByClassName.get(recipe.className) ?? null,
+      id,
+      payload: product
+        ? { type: 'product', data: product }
+        : recipe
+          ? { type: 'recipe', data: recipe }
+          : { type: 'product', data: null },
+      persistence,
+      degree: 0, // Computed below
+      sccGroupId: sccGroups.get(id) ?? null,
+      visuallyHidden: isBaseResource && !includeBaseResources,
     });
   }
 
   // --- Links ---
-  const links: GraphEdge[] = allEdges.map((edge) => ({
-    source: edge.sourceId,
-    target: edge.targetId,
-    throughput: edge.throughput,
-    weight: edge.weight,
-    persistence: edge.persistence,
-    focus: focusedIds.has(edge.sourceId) && focusedIds.has(edge.targetId),
-  }));
+  // Edge persistence = average of source and target node scores.
+  // Preserves importance if either endpoint is significant.
+  const links: GraphEdge[] = [];
+
+  for (const edge of filteredEdges) {
+    if (!reachableIds.has(edge.sourceId) || !reachableIds.has(edge.targetId)) {
+      continue;
+    }
+
+    links.push({
+      source: edge.sourceId,
+      target: edge.targetId,
+      throughput: edge.throughput,
+      weight: edge.weight,
+      persistence: {
+        full:
+          ((fullGraphNodeScores[edge.sourceId] ?? 0) +
+            (fullGraphNodeScores[edge.targetId] ?? 0)) /
+          2,
+        filtered:
+          ((filteredNodeScores[edge.sourceId] ?? 0) +
+            (filteredNodeScores[edge.targetId] ?? 0)) /
+          2,
+        subgraph:
+          ((subgraphNodeScores[edge.sourceId] ?? 0) +
+            (subgraphNodeScores[edge.targetId] ?? 0)) /
+          2,
+      },
+    });
+  }
+
+  // --- Compute degree ---
+  for (const link of links) {
+    const sourceId =
+      typeof link.source === 'string' ? link.source : link.source.id;
+    const targetId =
+      typeof link.target === 'string' ? link.target : link.target.id;
+
+    const sourceNode = nodes.find((n) => n.id === sourceId);
+    const targetNode = nodes.find((n) => n.id === targetId);
+
+    if (sourceNode) sourceNode.degree++;
+    if (targetNode) targetNode.degree++;
+  }
 
   return { nodes, links };
 }
@@ -184,34 +279,55 @@ function assembleGraph(focusedIds: Set<string>): {
 // HOOK
 // ============================================================================
 
-/**
- * Reactive graph builder.
- * Recomputes when the traversal config changes (target, rules, or view mode).
- *
- * Future: SCC collapsing would transform focusedIds between
- * walkUpstream() and assembleGraph(), optionally merging
- * cycle members into composite nodes before assembly.
- */
 export function useGraphBuilder(config: TraversalConfig): GraphBuilderResult {
   return useMemo(() => {
-    // No target — return the full graph, nothing focused
-    if (!config.targetClassName) {
-      const { nodes, links } = assembleGraph(new Set());
-      return { nodes, links, focusedCount: 0 };
+    // Phase 1: Filter edges
+    const filteredEdges = filterEdges(allEdges, config.rules);
+
+    // Phase 2: Walk
+    let reachableIds: Set<string>;
+    let walkedEdges: TopologicalEdge[];
+
+    if (config.targetClassName) {
+      reachableIds = walkUpstream(
+        config.targetClassName,
+        filteredEdges,
+        config.rules.includeBaseResources,
+      );
+      // Edges within the walked subgraph
+      walkedEdges = filteredEdges.filter(
+        (e) => reachableIds.has(e.sourceId) && reachableIds.has(e.targetId),
+      );
+    } else {
+      // No target — show the full filtered graph
+      reachableIds = new Set<string>();
+      for (const edge of filteredEdges) {
+        reachableIds.add(edge.sourceId);
+        reachableIds.add(edge.targetId);
+      }
+      walkedEdges = filteredEdges;
     }
 
-    // Phase 1: Walk
-    const focusedIds = walkUpstream(config.targetClassName, config.rules);
+    // Phase 3: Compute persistence + SCCs
+    const { filteredNodeScores, subgraphNodeScores, sccGroups } =
+      computeGraphMetrics(filteredEdges, walkedEdges);
 
-    // (Future: Phase 1.5 — SCC collapse transform on focusedIds)
+    // Phase 4: Assemble
+    const { nodes, links } = assembleGraph(
+      reachableIds,
+      filteredEdges,
+      filteredNodeScores,
+      subgraphNodeScores,
+      sccGroups,
+      config.rules.includeBaseResources,
+    );
 
-    // Phase 2: Assemble
-    const { nodes, links } = assembleGraph(focusedIds);
-
-    return { nodes, links, focusedCount: focusedIds.size };
+    return { nodes, links };
   }, [
     config.targetClassName,
     config.rules.includeAlternates,
+    config.rules.includeConverter,
+    config.rules.maxTier,
     config.rules.includeBaseResources,
   ]);
 }

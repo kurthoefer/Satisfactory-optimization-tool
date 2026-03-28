@@ -50,11 +50,11 @@ export interface Recipe {
 // ============================================================================
 
 export interface TopologicalEdge {
-  sourceId: string; // "iron-ingot"
-  targetId: string; // "recipe-iron-plate"
-  throughput: number; // (Amount / Recipe.Time) * 60 (Visual Thickness)
-  weight: number; // (Recipe.Time / Amount)  [Normalized] (Spring Length)
-  persistence: number; // Stability metric (Visibility / LOD)
+  sourceId: string;
+  targetId: string;
+  throughput: number;
+  weight: number;
+  persistence: number; // Full-graph default (precomputed at build time)
 }
 
 export interface TopologicalManifest {
@@ -63,78 +63,90 @@ export interface TopologicalManifest {
     edgeCount: number;
     sccCount: number;
   };
-  edges: TopologicalEdge[]; // The metric space
-  nodeScores: Record<string, number>; // PageRank persistence (0–1)
+  edges: TopologicalEdge[];
+  nodeScores: Record<string, number>;
   /**
-   * SCCs and circularItems are computed from the FULL production graph
-   * (all machines, all tiers, all recipe types).
-   *
+   * SCCs and circularItems are computed from the FULL production graph.
    * These serve as defaults for initial render only. When the user
    * applies filters (TraversalRules), SCCs must be recomputed
-   * client-side on the filtered edge set — Converter exclusion,
-   * tier limits, and alternate toggling all change cycle structure.
+   * client-side on the filtered edge set.
    *
    * TODO: Runtime SCC detection (Tarjan's on filtered TopologicalEdge[])
    * needed before d3-dag integration.
    */
-  sccs: string[][]; // The loops
-  circularItems: string[]; // Fast lookup for loop participants
+  sccs: string[][];
+  circularItems: string[];
+}
+
+// ============================================================================
+// PERSISTENCE
+// ============================================================================
+
+/**
+ * Three persistence contexts, each answering a different question:
+ *
+ *   full      — "In the complete production network, how important is this?"
+ *               Precomputed at build time. The absolute reference frame.
+ *
+ *   filtered  — "Across all production at my current filter settings,
+ *               how important is this?" Recomputed when filters change.
+ *
+ *   subgraph  — "Within this specific product's dependency tree,
+ *               how critical is this?" Recomputed when target changes.
+ */
+export interface PersistenceScores {
+  full: number;
+  filtered: number;
+  subgraph: number;
 }
 
 // ============================================================================
 // D3 INTERFACE
 // ============================================================================
 
-// 1. The Standard D3 Node Interface (Mutable struct, no nesting)
 interface D3GraphNode {
   index?: number;
-  x?: number; // Current X position
-  y?: number; // Current Y position
-  vx?: number; // X Velocity
-  vy?: number; // Y Velocity
-  fx?: number | null; // Fixed X (User drag state)
-  fy?: number | null; // Fixed Y (User drag state)
+  x?: number;
+  y?: number;
+  vx?: number;
+  vy?: number;
+  fx?: number | null;
+  fy?: number | null;
 }
 
 /**
- * The Actual Node used in the React Component.
+ * The node consumed by GraphCanvas.
+ * Built by useGraphBuilder from domain data.
+ * Canvas doesn't need to know about products, recipes, or filters —
+ * everything it needs to render is on this struct.
  */
 export interface GraphNode extends D3GraphNode {
-  id: string; // Required for D3 linkage
+  id: string;
 
-  // COMPOSITION: The Static Fact
-  // Wrapped in 'payload' so D3 never touches the original data.
   payload: {
-    type: 'product' | 'recipe' | 'scc';
+    type: 'product' | 'recipe';
     data: Product | Recipe | null;
   };
 
-  // KINETIC STATE: The "Heat"
-  // Calculated at runtime based on the specific neighbors in this view.
-  stressScore: number; // 0.0 to 1.0 (Color Heatmap)
-  degree: number; // Number of active connections (Size)
+  persistence: PersistenceScores;
+  degree: number;
+  sccGroupId: number | null;
 
-  // what production chain is the user asking for?
-  focus: boolean;
-
-  sccGroupId: number | null; // maybe just temporary
+  /** Visual filter: node participates in computation but is hidden from render */
+  visuallyHidden: boolean;
 }
 
 /**
- * The Actual Link used in the D3 Force Graph.
- * It extends the static edge with D3's object references.
+ * The link consumed by GraphCanvas.
+ * D3 replaces string IDs with node object references after initialization.
  */
 export interface GraphEdge extends Omit<
   TopologicalEdge,
   'sourceId' | 'targetId'
 > {
-  // D3 replaces string IDs with actual Node object references after initialization
   source: string | GraphNode;
   target: string | GraphNode;
-
-  // We keep the static physics values for the simulation forces
   throughput: number;
   weight: number;
-  persistence: number;
-  focus: boolean;
+  persistence: PersistenceScores;
 }

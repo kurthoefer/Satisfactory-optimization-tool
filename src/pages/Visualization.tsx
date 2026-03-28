@@ -16,7 +16,7 @@ import GraphCanvas from '@/components/graph/GraphCanvas';
 
 export default function VisualizationPage() {
   const { config, setRule } = useTraversalRules();
-  const { nodes, links, focusedCount } = useGraphBuilder(config);
+  const { nodes, links } = useGraphBuilder(config);
 
   return (
     <div className='flex h-full w-full bg-white text-slate-900'>
@@ -101,7 +101,7 @@ export default function VisualizationPage() {
       {/* CANVAS AREA */}
       <main className='flex-1 relative bg-slate-100 overflow-hidden'>
         <div className='absolute top-4 left-4 z-10 bg-white/80 px-3 py-1 rounded-full text-xs font-mono border shadow-sm'>
-          Focused: {focusedCount} | Total: {nodes.length}
+          Nodes: {nodes.length} | Edges: {links.length}
         </div>
 
         <GraphCanvas

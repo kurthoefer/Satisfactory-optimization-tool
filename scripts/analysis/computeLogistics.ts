@@ -84,6 +84,7 @@ export function generateTopology(
       sccCount: circularRelationships.stronglyConnectedComponents.length,
     },
     edges,
+    nodeScores: {}, // Populated by computePersistence in the next pipeline step
     sccs: circularRelationships.stronglyConnectedComponents,
     circularItems: circularRelationships.circularItems,
   };

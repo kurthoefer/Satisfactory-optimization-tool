@@ -3,7 +3,7 @@
  *
  * Creates and manages a D3 force simulation.
  * Wires tick updates to the provided node/link selections.
- * Attaches drag behavior to focused nodes.
+ * Attaches drag behavior to all nodes.
  * Integrates throttled recipe rotation via recipeRotation.ts.
  *
  * Returns a cleanup function to stop the simulation.
@@ -55,11 +55,6 @@ export function createForceLayout(
     rotationConfig,
   } = options;
 
-  console.log(
-    'these are the options just before they are handed to the simulation',
-    options,
-  );
-
   // --- Simulation ---
   const simulation = d3
     .forceSimulation<GraphNode>(nodes)
@@ -95,16 +90,14 @@ export function createForceLayout(
     rotationTick();
   });
 
-  // --- Click handler (focused nodes only) ---
+  // --- Click handler ---
   if (onNodeClick) {
-    nodeSelection
-      .filter((d) => d.focus)
-      .on('click', (_event, d) => {
-        onNodeClick(d.id);
-      });
+    nodeSelection.on('click', (_event, d) => {
+      onNodeClick(d.id);
+    });
   }
 
-  // --- Drag behavior (focused nodes only) ---
+  // --- Drag behavior ---
   const drag = d3
     .drag<SVGGElement, GraphNode>()
     .on('start', (event, d) => {
@@ -122,7 +115,7 @@ export function createForceLayout(
       d.fy = null;
     });
 
-  nodeSelection.filter((d) => d.focus).call(drag);
+  nodeSelection.call(drag);
 
   // --- Cleanup ---
   const cleanup = () => {
