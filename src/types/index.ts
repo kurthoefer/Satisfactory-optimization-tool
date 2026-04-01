@@ -66,16 +66,13 @@ export interface TopologicalManifest {
   edges: TopologicalEdge[];
   nodeScores: Record<string, number>;
   /**
-   * SCCs and circularItems are computed from the FULL production graph.
-   * These serve as defaults for initial render only. When the user
-   * applies filters (TraversalRules), SCCs must be recomputed
-   * client-side on the filtered edge set.
+   * SCCs computed from the FULL production graph.
+   * Serves as the default for initial render.
    *
-   * TODO: Runtime SCC detection (Tarjan's on filtered TopologicalEdge[])
-   * needed before d3-dag integration.
+   * When the user applies filters (TraversalRules), SCCs are
+   * recomputed client-side via detectSCCs() on the filtered edge set.
    */
   sccs: string[][];
-  circularItems: string[];
 }
 
 // ============================================================================
@@ -142,7 +139,7 @@ export interface GraphNode extends D3GraphNode {
  */
 export interface GraphEdge extends Omit<
   TopologicalEdge,
-  'sourceId' | 'targetId'
+  'sourceId' | 'targetId' | 'persistence'
 > {
   source: string | GraphNode;
   target: string | GraphNode;

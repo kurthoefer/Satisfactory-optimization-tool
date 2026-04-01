@@ -242,10 +242,7 @@ function assembleGraph(
       throughput: edge.throughput,
       weight: edge.weight,
       persistence: {
-        full:
-          ((fullGraphNodeScores[edge.sourceId] ?? 0) +
-            (fullGraphNodeScores[edge.targetId] ?? 0)) /
-          2,
+        full: edge.persistence,
         filtered:
           ((filteredNodeScores[edge.sourceId] ?? 0) +
             (filteredNodeScores[edge.targetId] ?? 0)) /

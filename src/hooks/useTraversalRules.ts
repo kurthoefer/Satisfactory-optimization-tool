@@ -5,6 +5,11 @@
  * everything downstream: the graph builder, the sidebar display,
  * persistence computation, and the canvas rendering.
  *
+ * Also enforces constraints between the selected product and filters:
+ *   - If maxTier is lower than the selected product's tier,
+ *     the config auto-corrects upward and emits a warning.
+ *   - constraints.minTier tells the UI which tier options to disable.
+ *
  * URL contract:
  *   /visualize/:productSlug?alternates=true&converter=false&maxTier=5&baseResources=false
  *
@@ -37,6 +42,11 @@ export interface TraversalConfig {
   rules: TraversalRules;
 }
 
+export interface TraversalConstraints {
+  /** Minimum selectable tier given the current product. 0 if no product selected. */
+  minTier: number;
+}
+
 // ============================================================================
 // DEFAULTS
 // ============================================================================
@@ -56,6 +66,8 @@ export function useTraversalRules(): {
     key: K,
     value: TraversalRules[K],
   ) => void;
+  constraints: TraversalConstraints;
+  warning: string | null;
 } {
   const { productSlug } = useParams<{ productSlug: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -80,10 +92,19 @@ export function useTraversalRules(): {
       : DEFAULT_INCLUDE_CONVERTER;
 
   const maxTierParam = searchParams.get('maxTier');
-  const maxTier: number | null =
+  let maxTier: number | null =
     maxTierParam !== null ? parseInt(maxTierParam, 10) : DEFAULT_MAX_TIER;
 
-  // --- Build config ---
+  // --- Constraint: product requires a minimum tier ---
+  const minTier = product?.tier ?? 0;
+  let warning: string | null = null;
+
+  if (maxTier !== null && product?.tier != null && maxTier < product.tier) {
+    warning = `Tier adjusted to ${product.tier} — ${product.name} requires at least tier ${product.tier}`;
+    maxTier = product.tier;
+  }
+
+  // --- Build config (uses corrected maxTier) ---
   const config: TraversalConfig = {
     targetClassName: product?.className ?? null,
     targetName: product?.name ?? null,
@@ -132,5 +153,10 @@ export function useTraversalRules(): {
     });
   };
 
-  return { config, setRule };
+  return {
+    config,
+    setRule,
+    constraints: { minTier },
+    warning,
+  };
 }

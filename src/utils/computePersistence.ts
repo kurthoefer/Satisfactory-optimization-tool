@@ -1,8 +1,10 @@
 /**
  * computePersistence
  *
- * Computes a persistence score for every TopologicalEdge using
- * weighted PageRank on the reversed graph.
+ * Computes persistence scores using weighted PageRank on the reversed graph.
+ * Pure function — no side effects, no framework dependencies.
+ *
+ * Used at build time (verbose logging) and at runtime (silent).
  *
  * Why reversed? In the original graph, edges flow from raw resources
  * toward end products (Product → Recipe → Product → ...). Reversing
@@ -19,18 +21,12 @@
  * Edge persistence = average of source and target node scores,
  * normalized to 0–1. This preserves information from both endpoints:
  * an edge touching anything important retains visibility.
- *
- * Usage (in buildGameData.ts):
- *   const topology = generateTopology(recipes, circular, products);
- *   const { edges, nodeScores } = computePersistence(topology.edges);
- *   topology.edges = edges;
- *   topology.nodeScores = nodeScores;
  */
 
-import type { TopologicalEdge } from '../../src/types';
+import type { TopologicalEdge } from '@/types';
 
 // ============================================================================
-// RESULT TYPE
+// TYPES
 // ============================================================================
 
 export interface PersistenceResult {
@@ -38,6 +34,11 @@ export interface PersistenceResult {
   edges: TopologicalEdge[];
   /** Node-level PageRank scores, normalized to 0–1 */
   nodeScores: Record<string, number>;
+}
+
+export interface PersistenceOptions {
+  /** Log convergence stats and top nodes to console. Default: false */
+  verbose?: boolean;
 }
 
 // ============================================================================
@@ -56,51 +57,46 @@ interface AdjacencyGraph {
   /** All unique node IDs */
   nodes: string[];
   /** Edges grouped by source node (original direction) */
-  edgesBySource: Map<string, TopologicalEdge[]>;
+  outboundEdges: Map<string, TopologicalEdge[]>;
   /** Edges grouped by target node (original direction) */
-  edgesByTarget: Map<string, TopologicalEdge[]>;
+  inboundEdges: Map<string, TopologicalEdge[]>;
 }
 
 /**
  * Build bidirectional adjacency maps from the flat edge array.
  *
- * These maps serve double duty:
- *   - Original direction: edgesBySource = outbound, edgesByTarget = inbound
- *   - Reversed direction: edgesByTarget = outbound, edgesBySource = inbound
- *
- * PageRank on the reversed graph reads edgesByTarget as "outbound"
- * (where rank flows FROM) and edgesBySource as "inbound" (where rank flows TO).
+ * These maps serve double duty for the reversed PageRank:
+ *   - inboundEdges (original) = outbound in reversed graph (rank flows FROM here)
+ *   - outboundEdges (original) = inbound in reversed graph (rank flows TO here)
  */
 function buildAdjacency(edges: TopologicalEdge[]): AdjacencyGraph {
   const nodeSet = new Set<string>();
-  const edgesBySource = new Map<string, TopologicalEdge[]>();
-  const edgesByTarget = new Map<string, TopologicalEdge[]>();
+  const outboundEdges = new Map<string, TopologicalEdge[]>();
+  const inboundEdges = new Map<string, TopologicalEdge[]>();
 
   for (const edge of edges) {
     nodeSet.add(edge.sourceId);
     nodeSet.add(edge.targetId);
 
-    // Group by source
-    const bySource = edgesBySource.get(edge.sourceId);
+    const bySource = outboundEdges.get(edge.sourceId);
     if (bySource) {
       bySource.push(edge);
     } else {
-      edgesBySource.set(edge.sourceId, [edge]);
+      outboundEdges.set(edge.sourceId, [edge]);
     }
 
-    // Group by target
-    const byTarget = edgesByTarget.get(edge.targetId);
+    const byTarget = inboundEdges.get(edge.targetId);
     if (byTarget) {
       byTarget.push(edge);
     } else {
-      edgesByTarget.set(edge.targetId, [edge]);
+      inboundEdges.set(edge.targetId, [edge]);
     }
   }
 
   return {
     nodes: Array.from(nodeSet),
-    edgesBySource,
-    edgesByTarget,
+    outboundEdges,
+    inboundEdges,
   };
 }
 
@@ -112,11 +108,9 @@ function buildAdjacency(edges: TopologicalEdge[]): AdjacencyGraph {
  * Run weighted PageRank on the reversed graph.
  *
  * In the reversed graph:
- *   - "outbound" edges from node X = original edges where X is the TARGET
- *     (i.e., edgesByTarget.get(X))
- *   - When X distributes rank along these reversed-outbound edges,
- *     the rank flows to edge.sourceId (the original source becomes
- *     the reversed target — the recipient of rank)
+ *   - "outbound" edges from node X = original inbound edges (inboundEdges.get(X))
+ *   - When X distributes rank, it flows to edge.sourceId
+ *     (original source = reversed target = rank recipient)
  *
  * Each iteration:
  *   1. Every node distributes its score to neighbors via reversed edges,
@@ -127,8 +121,11 @@ function buildAdjacency(edges: TopologicalEdge[]): AdjacencyGraph {
  *
  * Returns a Map of nodeId → PageRank score (sums to 1.0).
  */
-function weightedPageRankReversed(graph: AdjacencyGraph): Map<string, number> {
-  const { nodes, edgesByTarget } = graph;
+function weightedPageRankReversed(
+  graph: AdjacencyGraph,
+  verbose: boolean,
+): Map<string, number> {
+  const { nodes, inboundEdges } = graph;
   const N = nodes.length;
   const baseScore = 1 / N;
   const randomJump = (1 - DAMPING_FACTOR) / N;
@@ -140,10 +137,10 @@ function weightedPageRankReversed(graph: AdjacencyGraph): Map<string, number> {
   }
 
   // Precompute total outbound throughput per node (in reversed direction)
-  // Reversed outbound = original inbound = edgesByTarget
+  // Reversed outbound = original inbound = inboundEdges
   const totalOutThroughput = new Map<string, number>();
   for (const node of nodes) {
-    const outEdges = edgesByTarget.get(node) ?? [];
+    const outEdges = inboundEdges.get(node) ?? [];
     let total = 0;
     for (const edge of outEdges) {
       total += edge.throughput;
@@ -175,8 +172,8 @@ function weightedPageRankReversed(graph: AdjacencyGraph): Map<string, number> {
         continue;
       }
 
-      // Reversed outbound edges = original inbound = edgesByTarget
-      const outEdges = edgesByTarget.get(node) ?? [];
+      // Reversed outbound edges = original inbound = inboundEdges
+      const outEdges = inboundEdges.get(node) ?? [];
       for (const edge of outEdges) {
         // In reversed graph, rank flows to edge.sourceId
         // (original source = reversed target = rank recipient)
@@ -197,13 +194,15 @@ function weightedPageRankReversed(graph: AdjacencyGraph): Map<string, number> {
     scores = nextScores;
 
     if (maxDelta < CONVERGENCE_THRESHOLD) {
-      console.log(
-        `   - PageRank converged after ${iter + 1} iterations (maxΔ=${maxDelta.toExponential(2)})`,
-      );
+      if (verbose) {
+        console.log(
+          `   - PageRank converged after ${iter + 1} iterations (maxΔ=${maxDelta.toExponential(2)})`,
+        );
+      }
       break;
     }
 
-    if (iter === MAX_ITERATIONS - 1) {
+    if (iter === MAX_ITERATIONS - 1 && verbose) {
       console.log(
         `   - PageRank reached max iterations (${MAX_ITERATIONS}), maxΔ=${maxDelta.toExponential(2)}`,
       );
@@ -255,10 +254,6 @@ function mapScoresToEdges(
   }));
 }
 
-// ============================================================================
-// PUBLIC API
-// ============================================================================
-
 /**
  * Normalize raw PageRank scores to 0–1 range.
  */
@@ -290,20 +285,28 @@ function normalizeScores(scores: Map<string, number>): Record<string, number> {
  * Pure function: TopologicalEdge[] → { edges, nodeScores }
  *   - edges: same edges with persistence field populated (0–1)
  *   - nodeScores: per-node PageRank, normalized to 0–1
+ *
+ * Options:
+ *   - verbose: log convergence stats and top nodes (for build-time CLI)
  */
 export function computePersistence(
   edges: TopologicalEdge[],
+  options: PersistenceOptions = {},
 ): PersistenceResult {
+  const { verbose = false } = options;
+
   if (edges.length === 0) return { edges, nodeScores: {} };
 
   // Step 1: Build adjacency
   const graph = buildAdjacency(edges);
-  console.log(
-    `   - Built adjacency: ${graph.nodes.length} nodes, ${edges.length} edges`,
-  );
+  if (verbose) {
+    console.log(
+      `   - Built adjacency: ${graph.nodes.length} nodes, ${edges.length} edges`,
+    );
+  }
 
   // Step 2: Run weighted PageRank on reversed graph
-  const rawScores = weightedPageRankReversed(graph);
+  const rawScores = weightedPageRankReversed(graph, verbose);
 
   // Step 3: Normalize node scores to 0–1
   const nodeScores = normalizeScores(rawScores);
@@ -311,18 +314,20 @@ export function computePersistence(
   // Step 4: Map node scores → edge persistence (normalized sum)
   const annotatedEdges = mapScoresToEdges(edges, rawScores);
 
-  // Log some stats
-  const persistenceValues = annotatedEdges.map((e) => e.persistence);
-  const avg =
-    persistenceValues.reduce((a, b) => a + b, 0) / persistenceValues.length;
-  const topNodes = Object.entries(nodeScores)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5);
+  // Step 5: Log stats (build-time only)
+  if (verbose) {
+    const persistenceValues = annotatedEdges.map((e) => e.persistence);
+    const avg =
+      persistenceValues.reduce((a, b) => a + b, 0) / persistenceValues.length;
+    const topNodes = Object.entries(nodeScores)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5);
 
-  console.log(`   - Persistence range: 0.00–1.00, mean: ${avg.toFixed(3)}`);
-  console.log(`   - Top 5 nodes by PageRank (normalized):`);
-  for (const [nodeId, score] of topNodes) {
-    console.log(`       ${nodeId}: ${score.toFixed(4)}`);
+    console.log(`   - Persistence range: 0.00–1.00, mean: ${avg.toFixed(3)}`);
+    console.log(`   - Top 5 nodes by PageRank (normalized):`);
+    for (const [nodeId, score] of topNodes) {
+      console.log(`       ${nodeId}: ${score.toFixed(4)}`);
+    }
   }
 
   return { edges: annotatedEdges, nodeScores };

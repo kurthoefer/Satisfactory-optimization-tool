@@ -18,16 +18,19 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 import type { GameSectionSchema } from './types';
+import type { TopologicalManifest } from '../src/types';
 
 // Import Parsers
 import { extractProducts } from './parsers/extractProducts';
 import { extractRecipes } from './parsers/extractRecipes';
 import { extractSchematics } from './parsers/extractSchematics';
 
-// Import Analysis
-import { findCircularRelationships } from './analysis/recipeAnalysis';
-import { generateTopology } from './analysis/computeLogistics';
-import { computePersistence } from './analysis/computePersistence';
+// Import Analysis (build-time only)
+import { buildTopology } from './analysis/buildTopology';
+
+// Import Shared Utils (used by both build and runtime)
+import { computePersistence } from '../src/utils/computePersistence';
+import { detectSCCs } from '../src/utils/detectSCCs';
 
 // ============================================================================
 // PRODUCTION MACHINE FILTER
@@ -73,7 +76,7 @@ async function main() {
   // 2. LOAD RAW DATA
   // --------------------------------------------------------------------------
   console.log('📖 Loading _docs.json...');
-  const rawDocs = fs.readFileSync(docsPath, 'utf-16le'); // CHANGED: utf-8 → utf-16le "game engine friendly"
+  const rawDocs = fs.readFileSync(docsPath, 'utf-16le');
   const cleanDocs = rawDocs.replace(/^\uFEFF/, '');
   const docsData: GameSectionSchema[] = JSON.parse(cleanDocs);
   console.log(
@@ -154,41 +157,45 @@ async function main() {
   );
 
   // --------------------------------------------------------------------------
-  // 8. ANALYZE GRAPH (Circular Dependencies)
+  // 8. BUILD TOPOLOGY (edges with throughput + weight)
   // --------------------------------------------------------------------------
-  console.log('\n🕸️  Analyzing Graph Structure...');
-  const circularRelationships = findCircularRelationships(productionRecipes);
-
-  console.log(
-    `   - Identified ${circularRelationships.stronglyConnectedComponents.length} SCCs (Loops).`,
-  );
-  console.log(
-    `   - ${circularRelationships.circularItems.length} items are involved in loops.`,
-  );
+  console.log('\n📐 Building Topology...');
+  const edges = buildTopology(productionRecipes, products);
+  console.log(`   - Edges generated: ${edges.length}`);
 
   // --------------------------------------------------------------------------
-  // 9. GENERATE TOPOLOGY (Metrics + Structure)
+  // 9. DETECT SCCs (Tarjan's on edges)
   // --------------------------------------------------------------------------
-  console.log('\n📐 Generating Topological Manifest...');
-  const topology = generateTopology(
-    productionRecipes,
-    circularRelationships,
-    products,
-  );
-
-  console.log(`   - Edges Generated: ${topology.edges.length}`);
-  console.log(`   - Graph Metadata Embedded.`);
+  console.log('\n🕸️  Detecting Strongly Connected Components...');
+  const sccGroups = detectSCCs(edges);
+  const circularItems = sccGroups.flat();
+  console.log(`   - Found ${sccGroups.length} true SCCs (Loops).`);
+  console.log(`   - ${circularItems.length} items involved in loops.`);
 
   // --------------------------------------------------------------------------
   // 10. COMPUTE PERSISTENCE (Weighted PageRank)
   // --------------------------------------------------------------------------
   console.log('\n🔬 Computing Persistence Metrics...');
-  const { edges, nodeScores } = computePersistence(topology.edges);
-  topology.edges = edges;
-  topology.nodeScores = nodeScores;
+  const { edges: annotatedEdges, nodeScores } = computePersistence(edges, {
+    verbose: true,
+  });
 
   // --------------------------------------------------------------------------
-  // 11. WRITE OUTPUTS
+  // 11. ASSEMBLE TOPOLOGICAL MANIFEST
+  // --------------------------------------------------------------------------
+  const topology: TopologicalManifest = {
+    metadata: {
+      generatedAt: new Date().toISOString(),
+      edgeCount: annotatedEdges.length,
+      sccCount: sccGroups.length,
+    },
+    edges: annotatedEdges,
+    nodeScores,
+    sccs: sccGroups,
+  };
+
+  // --------------------------------------------------------------------------
+  // 12. WRITE OUTPUTS
   // --------------------------------------------------------------------------
   console.log('\n💾 Writing Data Files...');
 
@@ -200,8 +207,8 @@ async function main() {
   };
 
   write('products-flat.json', products);
-  write('recipes.json', recipes); // Full registry (all 856), enriched with tiers
-  write('topology.json', topology); // Production-chain only
+  write('recipes.json', recipes);
+  write('topology.json', topology);
 
   const end = performance.now();
   console.log(`\n✨ Build Complete in ${((end - start) / 1000).toFixed(2)}s!`);
