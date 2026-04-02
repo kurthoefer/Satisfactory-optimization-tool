@@ -33,11 +33,11 @@ import {
   recipesByClassName,
   allEdges,
   baseResourceClassNames,
+  fullGraphNodeScores,
 } from '@/data/indexes';
 
-// Full-graph persistence (precomputed at build time)
-import topologyData from '@/data/topology.json';
-const fullGraphNodeScores = topologyData.nodeScores as Record<string, number>;
+import { computePersistence } from '@/utils/computePersistence';
+import { detectSCCs } from '@/utils/detectSCCs';
 
 // ============================================================================
 // TYPES
@@ -64,7 +64,6 @@ function filterEdges(
   rules: TraversalRules,
 ): TopologicalEdge[] {
   return edges.filter((edge) => {
-    // Find the recipe on this edge (could be source or target)
     const recipe =
       recipesByClassName.get(edge.sourceId) ??
       recipesByClassName.get(edge.targetId);
@@ -72,14 +71,9 @@ function filterEdges(
     // Edge between two products with no recipe — keep it
     if (!recipe) return true;
 
-    // Alternate filter
     if (!rules.includeAlternates && recipe.isAlternate) return false;
-
-    // Converter filter
     if (!rules.includeConverter && recipe.producedIn === 'Converter')
       return false;
-
-    // Tier filter
     if (
       rules.maxTier !== null &&
       recipe.tier !== null &&
@@ -129,7 +123,6 @@ function walkUpstream(
 
       if (reachable.has(upstreamId)) continue;
 
-      // Check if this is a base resource
       const isBaseResource = baseResourceClassNames.has(upstreamId);
 
       if (isBaseResource) {
@@ -155,11 +148,11 @@ function walkUpstream(
 /**
  * Compute persistence scores and SCC groups for the current context.
  *
- * TODO: Implement runtime PageRank (computePersistence adapted for client)
- * TODO: Implement runtime SCC detection (Tarjan's on TopologicalEdge[])
+ * Runs PageRank twice:
+ *   - On filteredEdges → importance across the full filtered production network
+ *   - On walkedEdges → importance within the target product's dependency tree
  *
- * For now, uses precomputed full-graph scores as placeholder
- * for all three persistence contexts.
+ * Runs Tarjan's SCC detection on filteredEdges for cycle identification.
  */
 function computeGraphMetrics(
   filteredEdges: TopologicalEdge[],
@@ -169,15 +162,27 @@ function computeGraphMetrics(
   subgraphNodeScores: Record<string, number>;
   sccGroups: Map<string, number>;
 } {
-  // TODO: Runtime PageRank on filteredEdges → filteredNodeScores
-  // TODO: Runtime PageRank on walkedEdges → subgraphNodeScores
-  // TODO: Runtime Tarjan's on filteredEdges → sccGroups
+  // Filtered persistence: importance across the current filter context
+  const filteredResult = computePersistence(filteredEdges);
 
-  // Placeholder: use full-graph scores for all contexts
+  // Subgraph persistence: importance within the target's dependency tree
+  const subgraphResult = computePersistence(walkedEdges);
+
+  // SCC detection on the filtered graph
+  const sccGroupArrays = detectSCCs(filteredEdges);
+
+  // Build className → group index map (same pattern as indexes.ts)
+  const sccGroups = new Map<string, number>();
+  sccGroupArrays.forEach((group, groupIndex) => {
+    for (const className of group) {
+      sccGroups.set(className, groupIndex);
+    }
+  });
+
   return {
-    filteredNodeScores: fullGraphNodeScores,
-    subgraphNodeScores: fullGraphNodeScores,
-    sccGroups: new Map(),
+    filteredNodeScores: filteredResult.nodeScores,
+    subgraphNodeScores: subgraphResult.nodeScores,
+    sccGroups,
   };
 }
 
@@ -227,8 +232,6 @@ function assembleGraph(
   }
 
   // --- Links ---
-  // Edge persistence = average of source and target node scores.
-  // Preserves importance if either endpoint is significant.
   const links: GraphEdge[] = [];
 
   for (const edge of filteredEdges) {
@@ -241,6 +244,8 @@ function assembleGraph(
       target: edge.targetId,
       throughput: edge.throughput,
       weight: edge.weight,
+      // Edge persistence = average of source and target node scores.
+      // Preserves importance if either endpoint is significant.
       persistence: {
         full: edge.persistence,
         filtered:

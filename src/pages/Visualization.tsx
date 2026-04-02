@@ -7,15 +7,20 @@
  * Sidebar controls write back to the URL via setRule.
  * Product selection lives in its own component and navigates via URL.
  * The canvas receives tagged graph data shaped by the current rules.
+ *
+ * Constraints from useTraversalRules enforce valid filter states:
+ *   - Tier dropdown disables options below the selected product's tier
+ *   - WarningBubble explains auto-corrections from invalid URL states
  */
 
 import { useTraversalRules } from '@/hooks/useTraversalRules';
 import { useGraphBuilder } from '@/hooks/useGraphBuilder';
 import ProductAutocomplete from '@/components/ProductAutocomplete';
 import GraphCanvas from '@/components/graph/GraphCanvas';
+import WarningBubble from '@/components/ui/WarningBubble';
 
 export default function VisualizationPage() {
-  const { config, setRule } = useTraversalRules();
+  const { config, setRule, constraints, warning } = useTraversalRules();
   const { nodes, links } = useGraphBuilder(config);
 
   return (
@@ -88,8 +93,10 @@ export default function VisualizationPage() {
                   <option
                     key={t}
                     value={t}
+                    disabled={t < constraints.minTier}
                   >
                     Tier {t}
+                    {t < constraints.minTier ? ' (tier mismatch)' : ''}
                   </option>
                 ))}
               </select>
@@ -100,6 +107,10 @@ export default function VisualizationPage() {
 
       {/* CANVAS AREA */}
       <main className='flex-1 relative bg-slate-100 overflow-hidden'>
+        {/* Warning bubble — positioned at top of viewport */}
+        <WarningBubble message={warning} />
+
+        {/* Stats */}
         <div className='absolute top-4 left-4 z-10 bg-white/80 px-3 py-1 rounded-full text-xs font-mono border shadow-sm'>
           Nodes: {nodes.length} | Edges: {links.length}
         </div>
