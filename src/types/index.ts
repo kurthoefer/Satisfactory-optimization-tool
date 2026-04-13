@@ -65,13 +65,7 @@ export interface TopologicalManifest {
   };
   edges: TopologicalEdge[];
   nodeScores: Record<string, number>;
-  /**
-   * SCCs computed from the FULL production graph.
-   * Serves as the default for initial render.
-   *
-   * When the user applies filters (TraversalRules), SCCs are
-   * recomputed client-side via detectSCCs() on the filtered edge set.
-   */
+  nodeDepths: Record<string, number>;
   sccs: string[][];
 }
 

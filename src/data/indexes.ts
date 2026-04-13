@@ -5,7 +5,7 @@
  * These maps are the only way the rest of the app should access
  * products, recipes, and topology edges — never import the JSON directly.
  *
- * Eight indexes, eight questions they answer:
+ * Nine indexes, nine questions they answer:
  *   productsBySlug         → "User navigated to /visualize/concrete — which product is that?"
  *   productsByClassName    → "Topology says Desc_Cement_C — which product is that?"
  *   productsByCategory     → "Give me all products grouped by category" (product selector UI)
@@ -13,6 +13,10 @@
  *   baseResourceClassNames → "Is this product a leaf node with no recipe producing it?"
  *   sccGroupByClassName    → "Does this node belong to a cycle, and which one?" (full-graph default)
  *   fullGraphNodeScores    → "What is this node's precomputed persistence score?"
+ *   nodeDepths             → "How deep in the production chain is this node?"
+ *   productCategoryOrder   → "what is the ordered list of Product categories?"
+ *
+ * Also exposed topologyData.edges:
  *   allEdges               → "Give me the full edge set for filtering and traversal"
  */
 
@@ -131,6 +135,46 @@ export const fullGraphNodeScores = (topologyData.nodeScores ?? {}) as Record<
   string,
   number
 >;
+
+// ============================================================================
+// DEPTH (Flow directionality)
+// ============================================================================
+
+/**
+ * Shortest distance (in hops) from any base resource.
+ * Depth 0 = raw resource, increases toward end products.
+ * Products have even depths, recipes have odd depths (bipartite property).
+ *
+ * Used to identify feedback edges inside SCCs: an edge where
+ * source.depth > target.depth flows against the production current.
+ */
+export const nodeDepths = (topologyData.nodeDepths ?? {}) as Record<
+  string,
+  number
+>;
+
+// ============================================================================
+// SELECTOR PRESENTATION
+// ============================================================================
+
+export const productCategoryOrder: string[] = [
+  'Ingots',
+  'Standard Parts',
+  'Resources',
+  'Fluids',
+  'Industrial',
+  'Electronics',
+  'Nuclear',
+  'Space Elevator',
+  'Packaged',
+  'Power',
+  'Vehicles',
+  'Equipment',
+  'Ammo',
+  'Consumables',
+  'Biomass',
+  'Other',
+];
 
 // ============================================================================
 // RAW EDGE SET (for filtering and traversal)

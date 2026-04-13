@@ -27,6 +27,7 @@ import { extractSchematics } from './parsers/extractSchematics';
 
 // Import Analysis (build-time only)
 import { buildTopology } from './analysis/buildTopology';
+import { computeDepth } from './analysis/computeDepth';
 
 // Import Shared Utils (used by both build and runtime)
 import { computePersistence } from '../src/utils/computePersistence';
@@ -181,7 +182,27 @@ async function main() {
   });
 
   // --------------------------------------------------------------------------
-  // 11. ASSEMBLE TOPOLOGICAL MANIFEST
+  // 11. COMPUTE DEPTH (multi-root BFS for flow directionality)
+  // --------------------------------------------------------------------------
+  console.log('\n📏 Computing Node Depths...');
+
+  // Derive base resources: products that no recipe edge produces
+  const producedByRecipe = new Set<string>();
+  for (const edge of edges) {
+    if (edge.sourceId.startsWith('Recipe_')) {
+      producedByRecipe.add(edge.targetId);
+    }
+  }
+  const baseResources = new Set<string>(
+    [...new Set(edges.flatMap((e) => [e.sourceId, e.targetId]))].filter(
+      (id) => !id.startsWith('Recipe_') && !producedByRecipe.has(id),
+    ),
+  );
+
+  const { nodeDepths } = computeDepth(edges, baseResources, { verbose: true });
+
+  // --------------------------------------------------------------------------
+  // 12. ASSEMBLE TOPOLOGICAL MANIFEST
   // --------------------------------------------------------------------------
   const topology: TopologicalManifest = {
     metadata: {
@@ -191,11 +212,12 @@ async function main() {
     },
     edges: annotatedEdges,
     nodeScores,
+    nodeDepths,
     sccs: sccGroups,
   };
 
   // --------------------------------------------------------------------------
-  // 12. WRITE OUTPUTS
+  // 13. WRITE OUTPUTS
   // --------------------------------------------------------------------------
   console.log('\n💾 Writing Data Files...');
 
