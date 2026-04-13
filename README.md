@@ -12,6 +12,7 @@ An interactive production chain visualizer for [Satisfactory](https://www.satisf
 
 - **Explore, don't optimize** — browse all valid production paths for any product, including alternate recipes and circular dependencies
 - **Interactive graph visualization** — D3.js force-directed graphs with zoom, pan, and drag
+- **Filter-driven subgraphs** — constrain by tier, alternate recipes, converter recipes, and base resources to see exactly the production paths relevant to your factory
 - **Rich visual analysis** — more coming soon!
 
 ## 🖼️ Screenshots
@@ -78,9 +79,9 @@ Parses `_Docs.json` (Unreal Engine export) into the static JSON files the app co
 
 The app parses Satisfactory's raw game data (`_Docs.json`) into three clean datasets at build time:
 
-- **products-flat.json** — 115 craftable products across 15 categories
-- **recipes.json** — 318 recipes including alternates
-- **topology.json** — a bipartite directed graph encoding every ingredient→recipe and recipe→product relationship
+- **products-flat.json** — craftable products across 16 categories
+- **recipes.json** — recipes including alternates and converter recipes
+- **topology.json** — a bipartite directed graph encoding every ingredient→recipe and recipe→product relationship, with precomputed SCC groups and PageRank persistence scores
 
 At runtime, `indexes.ts` builds fast lookup maps from this data — no async fetching, no backend calls.
 
@@ -99,10 +100,10 @@ Products and recipes are both nodes. Edges represent material flow. This preserv
 The visualization page uses a unidirectional data flow driven entirely by the URL:
 
 ```
-URL params → traversal config → BFS upstream walk → focus-tagged graph → D3 rendering
+URL params → TraversalRules → filter edges → BFS upstream walk → graph assembly → D3 rendering
 ```
 
-Selecting a target product triggers a breadth-first traversal of its upstream dependencies. Every node and edge gets tagged as "focused" or not — the D3 simulation runs on the full graph always, and view modes just change what's visible. Toggling between focused and big-picture views is instant.
+Selecting a target product and applying filters triggers a four-phase pipeline: edges are filtered by the current rules, a BFS walk identifies reachable nodes upstream of the target, persistence scores are computed on the filtered subgraph, and the resulting graph is assembled for D3. The URL is the single source of truth — filters and product selection are all shareable and bookmarkable.
 
 ---
 
@@ -112,8 +113,11 @@ Selecting a target product triggers a breadth-first traversal of its upstream de
 - [x] Bipartite graph construction from game data
 - [x] SCC detection (Tarjan's algorithm)
 - [x] Force-directed graph visualization
-- [x] BFS upstream traversal with focus tagging
-- [ ] Visual tuning (logarithmic scaling, opacity mapping, SCC coloring)
+- [x] BFS upstream traversal
+- [x] Filter-driven subgraph pipeline (tier, alternates, converter, base resources)
+- [x] Precomputed PageRank persistence scores
+- [ ] Runtime persistence recomputation on filtered subgraphs
+- [ ] Visual tuning (persistence-driven opacity, SCC coloring, tier color encoding)
 - [ ] Sugiyama hierarchical layout (via d3-dag)
 - [ ] UI overhaul(s)
 - [ ] Production rate calculator (items/min)
