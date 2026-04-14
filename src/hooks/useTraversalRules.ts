@@ -11,7 +11,7 @@
  *   - constraints.minTier tells the UI which tier options to disable.
  *
  * URL contract:
- *   /visualize/:productSlug?alternates=true&converter=false&maxTier=5&baseResources=false
+ *   /visualize/:productSlug?alternates=true&converter=false&maxTier=5
  *
  * This hook is the ONLY place that reads route params.
  * Everything else consumes the config object it returns.
@@ -19,6 +19,7 @@
 
 import { useParams, useSearchParams } from 'react-router-dom';
 import { productsBySlug } from '@/data/indexes';
+import type { Product } from '@/types';
 
 // ============================================================================
 // TYPES
@@ -26,7 +27,6 @@ import { productsBySlug } from '@/data/indexes';
 
 export interface TraversalRules {
   includeAlternates: boolean;
-  includeBaseResources: boolean;
   includeConverter: boolean;
   maxTier: number | null; // null = unlimited
 }
@@ -52,7 +52,6 @@ export interface TraversalConstraints {
 // ============================================================================
 
 const DEFAULT_INCLUDE_ALTERNATES = false;
-const DEFAULT_INCLUDE_BASE_RESOURCES = true;
 const DEFAULT_INCLUDE_CONVERTER = true;
 const DEFAULT_MAX_TIER: number | null = null;
 
@@ -68,6 +67,7 @@ export function useTraversalRules(): {
   ) => void;
   constraints: TraversalConstraints;
   warning: string | null;
+  selectedProduct: Product | null;
 } {
   const { productSlug } = useParams<{ productSlug: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -80,11 +80,6 @@ export function useTraversalRules(): {
   // --- Read search params with defaults ---
   const includeAlternates =
     searchParams.get('alternates') === 'true' || DEFAULT_INCLUDE_ALTERNATES;
-
-  const includeBaseResources =
-    searchParams.get('baseResources') === 'false'
-      ? false
-      : DEFAULT_INCLUDE_BASE_RESOURCES;
 
   const includeConverter =
     searchParams.get('converter') === 'false'
@@ -111,7 +106,6 @@ export function useTraversalRules(): {
     targetSlug: productSlug ?? null,
     rules: {
       includeAlternates,
-      includeBaseResources,
       includeConverter,
       maxTier,
     },
@@ -129,12 +123,6 @@ export function useTraversalRules(): {
         value !== DEFAULT_INCLUDE_ALTERNATES
           ? next.set('alternates', String(value))
           : next.delete('alternates');
-      }
-
-      if (key === 'includeBaseResources') {
-        value !== DEFAULT_INCLUDE_BASE_RESOURCES
-          ? next.set('baseResources', String(value))
-          : next.delete('baseResources');
       }
 
       if (key === 'includeConverter') {
@@ -158,5 +146,6 @@ export function useTraversalRules(): {
     setRule,
     constraints: { minTier },
     warning,
+    selectedProduct: product,
   };
 }

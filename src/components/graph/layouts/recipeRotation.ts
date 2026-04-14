@@ -181,16 +181,7 @@ export function createRotationUpdater(
 
   const neighborIndex = buildNeighborIndex(nodes, links);
   const nodeById = new Map(nodes.map((n) => [n.id, n]));
-
-  // Collect recipe IDs that are visible (not hidden)
-  const visibleRecipeIds: string[] = [];
-  for (const [recipeId] of neighborIndex) {
-    const node = nodeById.get(recipeId);
-    if (!node) continue;
-    if (!node.visuallyHidden) {
-      visibleRecipeIds.push(recipeId);
-    }
-  }
+  const recipeIds = [...neighborIndex.keys()];
 
   // Cache of current angles per recipe — persists between ticks
   const angleCache = new Map<string, number>();
@@ -235,7 +226,7 @@ export function createRotationUpdater(
     const interval = isChaotic ? chaoticInterval : calmInterval;
 
     if (tickCount % interval === 0) {
-      updateAngles(visibleRecipeIds);
+      updateAngles(recipeIds);
     }
 
     // Apply transform: translate + cached rotation

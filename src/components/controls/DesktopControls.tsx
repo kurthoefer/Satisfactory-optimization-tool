@@ -9,6 +9,7 @@ import { useState } from 'react';
 import { ProductSelector } from '@/components/selector/ProductSelector';
 import { FilterSummary } from './FilterSummary';
 import { FilterToggles } from './FilterToggles';
+import { SelectedProductDisplay } from './SelectedProductDisplay';
 import type {
   TraversalConfig,
   TraversalConstraints,
@@ -20,6 +21,7 @@ interface DesktopControlsProps {
   config: TraversalConfig;
   constraints: TraversalConstraints;
   warning: string | null;
+  selectedProduct: Product | null;
   onSelectProduct: (product: Product) => void;
   onSetRule: <K extends keyof TraversalRules>(
     key: K,
@@ -31,10 +33,13 @@ export function DesktopControls({
   config,
   constraints,
   warning,
+  selectedProduct,
   onSelectProduct,
   onSetRule,
 }: DesktopControlsProps) {
   const [isOpen, setIsOpen] = useState(true);
+
+  console.log('here is config HERE IS CONFIG here is config', config);
 
   return (
     <div className='w-72 rounded-lg border border-neutral-700 bg-neutral-900/90 backdrop-blur-sm shadow-xl flex flex-col overflow-hidden'>
@@ -49,19 +54,21 @@ export function DesktopControls({
           {isOpen ? '↑' : '↓'}
         </button>
       </div>
-
       {/* Body */}
       {isOpen && (
-        <div className='flex flex-col'>
+        <div className='flex flex-col px-3'>
           {/* Warning */}
           {warning && (
-            <div className='mx-3 mt-2 px-2 py-1.5 text-xs text-amber-300 bg-amber-950/50 border border-amber-800 rounded'>
+            <div className='mt-2 px-2 py-1.5 text-xs text-amber-300 bg-amber-950/50 border border-amber-800 rounded'>
               {warning}
             </div>
           )}
 
           {/* Product selector */}
           <div className='border-b border-neutral-800'>
+            {selectedProduct && (
+              <SelectedProductDisplay product={selectedProduct} />
+            )}
             <ProductSelector
               maxTier={config.rules.maxTier}
               onSelect={onSelectProduct}

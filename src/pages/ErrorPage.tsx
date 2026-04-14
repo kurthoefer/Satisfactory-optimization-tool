@@ -1,4 +1,3 @@
-// Tailwind Practice
 import { useRouteError, isRouteErrorResponse, Link } from 'react-router-dom';
 
 export default function ErrorPage() {
@@ -18,13 +17,13 @@ export default function ErrorPage() {
   }
 
   return (
-    <div className='min-h-screen bg-gray-50 flex items-center justify-center px-4'>
+    <div className='min-h-screen bg-gray-900 flex items-center justify-center px-4'>
       <div className='max-w-md w-full text-center'>
-        {/* Error Icon */}
+        {/* Error icon */}
         <div className='mb-6'>
-          <div className='w-20 h-20 mx-auto bg-red-100 rounded-full flex items-center justify-center'>
+          <div className='w-20 h-20 mx-auto bg-neutral-800 rounded-full flex items-center justify-center border border-neutral-700'>
             <svg
-              className='w-10 h-10 text-red-500'
+              className='w-10 h-10 text-neutral-400'
               fill='none'
               stroke='currentColor'
               viewBox='0 0 24 24'
@@ -39,37 +38,37 @@ export default function ErrorPage() {
           </div>
         </div>
 
-        {/* Error Message */}
-        <h1 className='text-3xl font-bold text-gray-900 mb-2'>
+        {/* Error message */}
+        <h1 className='text-3xl font-bold text-white mb-2'>
           {errorStatus ? `Error ${errorStatus}` : 'Oops!'}
         </h1>
 
-        <p className='text-lg text-gray-600 mb-8'>{errorMessage}</p>
+        <p className='text-neutral-400 mb-8'>{errorMessage}</p>
 
         {/* Actions */}
         <div className='flex flex-col sm:flex-row gap-3 justify-center'>
           <Link
             to='/'
-            className='px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors'
+            className='px-6 py-3 bg-neutral-800 text-neutral-200 rounded-lg border border-neutral-700 hover:border-neutral-500 hover:text-white transition-colors'
           >
             Go Home
           </Link>
 
           <button
             onClick={() => window.location.reload()}
-            className='px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors'
+            className='px-6 py-3 bg-neutral-800 text-neutral-400 rounded-lg border border-neutral-700 hover:border-neutral-500 hover:text-neutral-200 transition-colors'
           >
             Reload Page
           </button>
         </div>
 
-        {/* Additional Info in Development */}
+        {/* Stack trace — dev only */}
         {import.meta.env.DEV && error instanceof Error && (
           <details className='mt-8 text-left'>
-            <summary className='cursor-pointer text-sm text-gray-500 hover:text-gray-700'>
+            <summary className='cursor-pointer text-xs text-neutral-500 hover:text-neutral-300'>
               Error Details (Development Only)
             </summary>
-            <pre className='mt-4 p-4 bg-gray-100 rounded-lg text-xs overflow-auto'>
+            <pre className='mt-4 p-4 bg-neutral-800 border border-neutral-700 rounded-lg text-xs text-neutral-400 overflow-auto'>
               {error.stack}
             </pre>
           </details>

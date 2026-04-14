@@ -69,7 +69,7 @@ This runs the full pipeline: game data parsing → TypeScript compilation → Vi
 npm run data:build
 ```
 
-Parses `_Docs.json` (Unreal Engine export) into the static JSON files the app consumes at runtime.
+Parses `_docs.json` (Unreal Engine export) into the static JSON files the app consumes at runtime.
 
 ---
 

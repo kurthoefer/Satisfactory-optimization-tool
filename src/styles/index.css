@@ -94,13 +94,82 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
+    /* Tier 0 */
     --color-tier-0: oklch(0.55 0.12 200);
     --color-tier-0-border: oklch(0.5 0.15 200);
     --color-tier-0-bg: oklch(0.18 0.02 200);
     --color-tier-0-text: oklch(0.82 0.08 200);
     --color-tier-0-muted: oklch(0.45 0.04 200);
 
-    /* ... same pattern for tiers 1-9 ... */
+    /* Tier 1 */
+    --color-tier-1: oklch(0.55 0.12 181);
+    --color-tier-1-border: oklch(0.5 0.15 181);
+    --color-tier-1-bg: oklch(0.18 0.02 181);
+    --color-tier-1-text: oklch(0.82 0.08 181);
+    --color-tier-1-muted: oklch(0.45 0.04 181);
+
+    /* Tier 2 */
+    --color-tier-2: oklch(0.55 0.12 162);
+    --color-tier-2-border: oklch(0.5 0.15 162);
+    --color-tier-2-bg: oklch(0.18 0.02 162);
+    --color-tier-2-text: oklch(0.82 0.08 162);
+    --color-tier-2-muted: oklch(0.45 0.04 162);
+
+    /* Tier 3 */
+    --color-tier-3: oklch(0.55 0.12 144);
+    --color-tier-3-border: oklch(0.5 0.15 144);
+    --color-tier-3-bg: oklch(0.18 0.02 144);
+    --color-tier-3-text: oklch(0.82 0.08 144);
+    --color-tier-3-muted: oklch(0.45 0.04 144);
+
+    /* Tier 4 */
+    --color-tier-4: oklch(0.55 0.12 125);
+    --color-tier-4-border: oklch(0.5 0.15 125);
+    --color-tier-4-bg: oklch(0.18 0.02 125);
+    --color-tier-4-text: oklch(0.82 0.08 125);
+    --color-tier-4-muted: oklch(0.45 0.04 125);
+
+    /* Tier 5 */
+    --color-tier-5: oklch(0.55 0.12 106);
+    --color-tier-5-border: oklch(0.5 0.15 106);
+    --color-tier-5-bg: oklch(0.18 0.02 106);
+    --color-tier-5-text: oklch(0.82 0.08 106);
+    --color-tier-5-muted: oklch(0.45 0.04 106);
+
+    /* Tier 6 */
+    --color-tier-6: oklch(0.55 0.12 87);
+    --color-tier-6-border: oklch(0.5 0.15 87);
+    --color-tier-6-bg: oklch(0.18 0.02 87);
+    --color-tier-6-text: oklch(0.82 0.08 87);
+    --color-tier-6-muted: oklch(0.45 0.04 87);
+
+    /* Tier 7 */
+    --color-tier-7: oklch(0.55 0.12 50);
+    --color-tier-7-border: oklch(0.5 0.15 50);
+    --color-tier-7-bg: oklch(0.18 0.02 50);
+    --color-tier-7-text: oklch(0.82 0.08 50);
+    --color-tier-7-muted: oklch(0.45 0.04 50);
+
+    /* Tier 8 */
+    --color-tier-8: oklch(0.55 0.12 25);
+    --color-tier-8-border: oklch(0.5 0.15 25);
+    --color-tier-8-bg: oklch(0.18 0.02 25);
+    --color-tier-8-text: oklch(0.82 0.08 25);
+    --color-tier-8-muted: oklch(0.45 0.04 25);
+
+    /* Tier 9 — Endgame (purple break) */
+    --color-tier-9: oklch(0.55 0.15 300);
+    --color-tier-9-border: oklch(0.5 0.18 300);
+    --color-tier-9-bg: oklch(0.18 0.03 300);
+    --color-tier-9-text: oklch(0.82 0.1 300);
+    --color-tier-9-muted: oklch(0.45 0.05 300);
+
+    /* Untiered — Neutral grey */
+    --color-tier-null: oklch(0.55 0 0);
+    --color-tier-null-border: oklch(0.45 0 0);
+    --color-tier-null-bg: oklch(0.18 0 0);
+    --color-tier-null-text: oklch(0.82 0 0);
+    --color-tier-null-muted: oklch(0.4 0 0);
   }
 }
 

@@ -96,7 +96,6 @@ function filterEdges(
 function walkUpstream(
   targetClassName: string,
   filteredEdges: TopologicalEdge[],
-  includeBaseResources: boolean,
 ): Set<string> {
   // Build a local edgesByTarget index from filtered edges
   const edgesByTarget = new Map<string, TopologicalEdge[]>();
@@ -126,9 +125,8 @@ function walkUpstream(
       const isBaseResource = baseResourceClassNames.has(upstreamId);
 
       if (isBaseResource) {
-        if (includeBaseResources) {
-          reachable.add(upstreamId);
-        }
+        reachable.add(upstreamId);
+
         // Don't recurse past base resources — they're leaves
         continue;
       }
@@ -200,7 +198,6 @@ function assembleGraph(
   filteredNodeScores: Record<string, number>,
   subgraphNodeScores: Record<string, number>,
   sccGroups: Map<string, number>,
-  includeBaseResources: boolean,
 ): { nodes: GraphNode[]; links: GraphEdge[] } {
   // --- Nodes ---
   const nodes: GraphNode[] = [];
@@ -208,8 +205,6 @@ function assembleGraph(
   for (const id of reachableIds) {
     const product = productsByClassName.get(id);
     const recipe = recipesByClassName.get(id);
-
-    const isBaseResource = baseResourceClassNames.has(id);
 
     const persistence: PersistenceScores = {
       full: fullGraphNodeScores[id] ?? 0,
@@ -227,7 +222,6 @@ function assembleGraph(
       persistence,
       degree: 0, // Computed below
       sccGroupId: sccGroups.get(id) ?? null,
-      visuallyHidden: isBaseResource && !includeBaseResources,
     });
   }
 
@@ -291,11 +285,7 @@ export function useGraphBuilder(config: TraversalConfig): GraphBuilderResult {
     let walkedEdges: TopologicalEdge[];
 
     if (config.targetClassName) {
-      reachableIds = walkUpstream(
-        config.targetClassName,
-        filteredEdges,
-        config.rules.includeBaseResources,
-      );
+      reachableIds = walkUpstream(config.targetClassName, filteredEdges);
       // Edges within the walked subgraph
       walkedEdges = filteredEdges.filter(
         (e) => reachableIds.has(e.sourceId) && reachableIds.has(e.targetId),
@@ -321,7 +311,6 @@ export function useGraphBuilder(config: TraversalConfig): GraphBuilderResult {
       filteredNodeScores,
       subgraphNodeScores,
       sccGroups,
-      config.rules.includeBaseResources,
     );
 
     return { nodes, links };
@@ -330,6 +319,5 @@ export function useGraphBuilder(config: TraversalConfig): GraphBuilderResult {
     config.rules.includeAlternates,
     config.rules.includeConverter,
     config.rules.maxTier,
-    config.rules.includeBaseResources,
   ]);
 }

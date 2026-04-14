@@ -122,9 +122,6 @@ export interface GraphNode extends D3GraphNode {
   persistence: PersistenceScores;
   degree: number;
   sccGroupId: number | null;
-
-  /** Visual filter: node participates in computation but is hidden from render */
-  visuallyHidden: boolean;
 }
 
 /**

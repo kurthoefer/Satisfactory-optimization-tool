@@ -4,9 +4,6 @@
  * Appends node <g> groups to the SVG, each containing the
  * appropriate shape: circle for products, vesica piscis for recipes.
  *
- * Nodes marked as visuallyHidden are excluded from rendering
- * but still participate in layout and computation.
- *
  * Returns the D3 selection so the caller can wire up tick updates,
  * drag behavior, and click handlers.
  *
@@ -33,23 +30,19 @@ export type NodeSelection = d3.Selection<
 // ============================================================================
 
 /**
- * Draw visible nodes into the given SVG <g> container.
+ * Draw all nodes into the given SVG <g> container.
  *
  * Products get <circle>, recipes get <path> (vesica piscis).
- * visuallyHidden nodes are filtered out before rendering.
  */
 export function drawNodes(
   container: d3.Selection<SVGGElement, unknown, null, undefined>,
   nodes: GraphNode[],
 ): NodeSelection {
-  // Filter to visible nodes only
-  const visibleNodes = nodes.filter((n) => !n.visuallyHidden);
-
   const nodeGroups = container
     .append('g')
     .attr('class', 'nodes')
     .selectAll<SVGGElement, GraphNode>('g')
-    .data(visibleNodes)
+    .data(nodes)
     .join('g')
     .attr('class', 'node')
     .attr('cursor', 'pointer');

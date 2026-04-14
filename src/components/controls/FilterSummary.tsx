@@ -34,10 +34,6 @@ export function FilterSummary({ config }: FilterSummaryProps) {
     parts.push('No Converter');
   }
 
-  if (!rules.includeBaseResources) {
-    parts.push('No Base Resources');
-  }
-
   return (
     <div className='flex flex-wrap gap-1.5 items-center'>
       {parts.map((part, i) => (

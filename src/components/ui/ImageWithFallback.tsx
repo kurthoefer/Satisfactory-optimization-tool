@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Skeleton } from '@/components/ui/Skeleton';
 
 interface ImageWithFallbackProps extends React.ImgHTMLAttributes<HTMLImageElement> {
@@ -14,23 +14,15 @@ export const ImageWithFallback: React.FC<ImageWithFallbackProps> = ({
 }) => {
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [currentSrc, setCurrentSrc] = useState(src);
-
-  useEffect(() => {
-    // Only reset if src actually changed
-    if (currentSrc !== src) {
-      setError(false);
-      setLoading(true);
-      setCurrentSrc(src);
-    }
-  }, [src, currentSrc]);
 
   return (
+    // Parent must be position:relative for the skeleton to size correctly
+    // while the loading img is position:absolute
     <>
       {loading && !error && <Skeleton className={className} />}
 
       <img
-        key={src} // Force remount when src changes
+        key={src}
         alt={alt}
         src={error ? fallbackSrc : src}
         className={`${loading ? 'opacity-0' : ''} ${className}`}

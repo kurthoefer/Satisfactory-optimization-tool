@@ -1,19 +1,4 @@
 /**
- * VisualizationPage
- *
- * The orchestration layer. Connects:
- *   URL → useTraversalRules → useGraphBuilder → GraphCanvas
- *
- * Sidebar controls write back to the URL via setRule.
- * Product selection lives in its own component and navigates via URL.
- * The canvas receives tagged graph data shaped by the current rules.
- *
- * Constraints from useTraversalRules enforce valid filter states:
- *   - Tier dropdown disables options below the selected product's tier
- *   - WarningBubble explains auto-corrections from invalid URL states
- */
-
-/**
  * Visualization
  *
  * Page-level orchestration. Owns the URL-derived config and
@@ -35,7 +20,8 @@ import type { Product } from '@/types';
 
 export default function Visualization() {
   const navigate = useNavigate();
-  const { config, setRule, constraints, warning } = useTraversalRules();
+  const { config, setRule, constraints, warning, selectedProduct } =
+    useTraversalRules();
   const { nodes, links } = useGraphBuilder(config);
 
   function handleSelectProduct(product: Product) {
@@ -56,6 +42,7 @@ export default function Visualization() {
           config={config}
           constraints={constraints}
           warning={warning}
+          selectedProduct={selectedProduct}
           onSelectProduct={handleSelectProduct}
           onSetRule={setRule}
         />
@@ -67,6 +54,7 @@ export default function Visualization() {
           config={config}
           constraints={constraints}
           warning={warning}
+          selectedProduct={selectedProduct}
           onSelectProduct={handleSelectProduct}
           onSetRule={setRule}
         />

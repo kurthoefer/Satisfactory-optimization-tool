@@ -24,7 +24,7 @@ export function FilterToggles({
   onSetRule,
 }: FilterTogglesProps) {
   return (
-    <div className='flex flex-col gap-3 p-3'>
+    <div className='flex flex-col gap-3 my-2'>
       {/* Max tier */}
       <div className='flex flex-col gap-1'>
         <div className='flex justify-between items-center'>
@@ -58,13 +58,6 @@ export function FilterToggles({
         label='Converter Recipes'
         checked={rules.includeConverter}
         onChange={(v) => onSetRule('includeConverter', v)}
-      />
-
-      {/* Base Resources */}
-      <Toggle
-        label='Base Resources'
-        checked={rules.includeBaseResources}
-        onChange={(v) => onSetRule('includeBaseResources', v)}
       />
     </div>
   );

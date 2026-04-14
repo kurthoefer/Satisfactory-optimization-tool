@@ -21,6 +21,7 @@ interface MobileControlsProps {
   config: TraversalConfig;
   constraints: TraversalConstraints;
   warning: string | null;
+  selectedProduct: Product | null;
   onSelectProduct: (product: Product) => void;
   onSetRule: <K extends keyof TraversalRules>(
     key: K,
@@ -89,7 +90,7 @@ export function MobileControls({
 
           {/* Warning */}
           {warning && (
-            <div className='mx-3 mt-2 px-2 py-1.5 text-xs text-amber-300 bg-amber-950/50 border border-amber-800 rounded'>
+            <div className='mt-2 px-2 py-1.5 text-xs text-amber-300 bg-amber-950/50 border border-amber-800 rounded'>
               {warning}
             </div>
           )}

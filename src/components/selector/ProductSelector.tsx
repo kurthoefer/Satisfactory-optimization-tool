@@ -90,8 +90,8 @@ export function ProductSelector({
 
   return (
     <div
+      className='mt-2'
       ref={containerRef}
-      className='px-2'
     >
       {/* Search input */}
       <input
@@ -101,7 +101,7 @@ export function ProductSelector({
         onChange={(e) => setQuery(e.target.value)}
         onFocus={() => setIsOpen(true)}
         placeholder={`Search ${enabledCount} products...`}
-        className='w-full px-3 py-2 rounded border border-neutral-600 bg-neutral-800 text-sm text-white placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-400'
+        className='w-full py-2 rounded border border-neutral-600 bg-neutral-800 text-sm text-white placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-400'
       />
 
       {/* Tier info line */}
@@ -120,13 +120,14 @@ export function ProductSelector({
             style={{ height: gridHeight }}
             className='overflow-y-auto'
           >
+            <div className='py-1' />
             {categories.map((section, sectionIndex) => (
               <div key={section.name}>
-                <div className='px-3 py-1 text-xs font-semibold text-neutral-500 uppercase tracking-wider sticky top-0 bg-neutral-900'>
+                <div className='py-1 text-xs font-semibold text-neutral-500 uppercase tracking-wider sticky top-0 bg-neutral-900'>
                   {section.name}
                 </div>
                 <div
-                  className='grid p-2 gap-1'
+                  className='grid py-2 gap-1'
                   style={{
                     gridTemplateColumns: `repeat(auto-fill, minmax(${TILE_MIN_WIDTH}px, 1fr))`,
                   }}
