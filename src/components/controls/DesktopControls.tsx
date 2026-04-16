@@ -65,7 +65,7 @@ export function DesktopControls({
           )}
 
           {/* Product selector */}
-          <div className='border-b border-neutral-800'>
+          <div className='border-neutral-800'>
             {selectedProduct && (
               <SelectedProductDisplay product={selectedProduct} />
             )}

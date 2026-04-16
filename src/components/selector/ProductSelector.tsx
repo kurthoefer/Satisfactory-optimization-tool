@@ -32,30 +32,34 @@ export function ProductSelector({
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const { categories, query, setQuery } = useProductSelector(maxTier);
+
   const handleClose = useCallback(() => {
     setIsOpen(false);
-    inputRef.current?.focus();
   }, []);
 
   const handleSelect = useCallback(
     (product: Product) => {
       onSelect(product);
+      setQuery('');
+      inputRef.current?.blur();
       handleClose();
     },
-    [onSelect, handleClose],
+    [onSelect, handleClose, setQuery, inputRef],
   );
 
-  const { categories, query, setQuery } = useProductSelector(maxTier);
   const { height: gridHeight, handleDragStart } = useDraggableHeight({
     direction: dragDirection,
   });
 
-  const { getRefSetter, isActive } = useGridNavigation({
+  const { getRefSetter, isActive, ghostSuffix } = useGridNavigation({
     isOpen,
     sections: categories,
     onSelect: handleSelect,
     onClose: handleClose,
     containerRef,
+    inputRef,
+    query,
   });
 
   // Click-outside close
@@ -93,17 +97,23 @@ export function ProductSelector({
       className='mt-2'
       ref={containerRef}
     >
-      {/* Search input */}
-      <input
-        ref={inputRef}
-        type='text'
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        onFocus={() => setIsOpen(true)}
-        placeholder={`Search ${enabledCount} products...`}
-        className='w-full py-2 rounded border border-neutral-600 bg-neutral-800 text-sm text-white placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-400'
-      />
-
+      <div className='relative w-full'>
+        {/* Ghost text layer */}
+        <div className='absolute inset-0 px-3 py-2 text-sm pointer-events-none flex items-center'>
+          <span className='text-white invisible'>{query}</span>
+          <span className='text-neutral-500'>{ghostSuffix}</span>
+        </div>
+        {/* Search input */}
+        <input
+          ref={inputRef}
+          type='text'
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onFocus={() => setIsOpen(true)}
+          placeholder={query ? '' : `Search ${enabledCount} products...`}
+          className='w-full px-3 py-2 rounded border border-neutral-600 bg-neutral-800 text-sm text-white placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-400'
+        />
+      </div>
       {/* Tier info line */}
       {maxTier !== null && (
         <div className='mt-1 text-xs text-neutral-400'>

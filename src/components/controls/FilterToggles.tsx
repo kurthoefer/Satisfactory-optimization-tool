@@ -6,8 +6,9 @@
 
 import type { TraversalRules } from '@/hooks/useTraversalRules';
 import type { TraversalConstraints } from '@/hooks/useTraversalRules';
+import TierFilter from './TierFilter';
 
-const MAX_TIER = 9;
+// const MAX_TIER = 9;
 
 interface FilterTogglesProps {
   rules: TraversalRules;
@@ -26,25 +27,11 @@ export function FilterToggles({
   return (
     <div className='flex flex-col gap-3 my-2'>
       {/* Max tier */}
-      <div className='flex flex-col gap-1'>
-        <div className='flex justify-between items-center'>
-          <label className='text-xs text-neutral-400'>Max Tier</label>
-          <span className='text-xs text-neutral-300'>
-            {rules.maxTier === null ? 'All' : rules.maxTier}
-          </span>
-        </div>
-        <input
-          type='range'
-          min={constraints.minTier}
-          max={MAX_TIER}
-          value={rules.maxTier ?? MAX_TIER}
-          onChange={(e) => {
-            const val = parseInt(e.target.value, 10);
-            onSetRule('maxTier', val === MAX_TIER ? null : val);
-          }}
-          className='w-full accent-neutral-400'
-        />
-      </div>
+      <TierFilter
+        maxTier={rules.maxTier}
+        minAllowedTier={constraints.minTier}
+        onChange={(v) => onSetRule('maxTier', v)}
+      />
 
       {/* Alternates */}
       <Toggle
@@ -80,15 +67,15 @@ function Toggle({ label, checked, onChange }: ToggleProps) {
       <span>{label}</span>
       <span
         className={`
-        w-8 h-4 rounded-full transition-colors relative
-        ${checked ? 'bg-neutral-400' : 'bg-neutral-700'}
-      `}
+          relative shrink-0 w-8 h-4 rounded-full transition-colors
+          ${checked ? 'bg-neutral-400' : 'bg-neutral-700'}
+        `}
       >
         <span
           className={`
-          absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform
-          ${checked ? 'translate-x-4' : 'translate-x-0.5'}
-        `}
+            absolute top-0.5 bottom-0.5 aspect-square rounded-full bg-white transition-all
+            ${checked ? 'right-0.5 left-auto' : 'left-0.5 right-auto'}
+          `}
         />
       </span>
     </button>

@@ -1,9 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import type { SelectorCategory } from './useProductSelector';
 import type { Product } from '@/types';
-
 import { TILE_MIN_WIDTH } from './constants';
-// const TILE_MIN_WIDTH = 80;
 
 interface UseGridNavigationOptions {
   isOpen: boolean;
@@ -11,6 +9,8 @@ interface UseGridNavigationOptions {
   onSelect: (product: Product) => void;
   onClose: () => void;
   containerRef: React.RefObject<HTMLElement>;
+  inputRef: React.RefObject<HTMLInputElement>;
+  query: string;
 }
 
 interface GridPosition {
@@ -24,56 +24,77 @@ export function useGridNavigation({
   onSelect,
   onClose,
   containerRef,
+  inputRef,
+  query,
 }: UseGridNavigationOptions) {
   const [position, setPosition] = useState<GridPosition | null>(null);
   const [itemsPerRow, setItemsPerRow] = useState(4);
   const itemRefs = useRef<Map<string, HTMLElement>>(new Map());
+  const focusInGrid = useRef(false);
 
   // ResizeObserver — keep itemsPerRow in sync with container width
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-
     const observer = new ResizeObserver(([entry]) => {
       const width = entry.contentRect.width;
       setItemsPerRow(Math.max(1, Math.floor(width / TILE_MIN_WIDTH)));
     });
-
     observer.observe(el);
     return () => observer.disconnect();
   }, [containerRef]);
 
-  // Reset position when selector opens or sections change
+  // Reset when selector opens
   useEffect(() => {
     if (isOpen) {
       setPosition(
         sections.length > 0 ? { sectionIndex: 0, itemIndex: 0 } : null,
       );
+      focusInGrid.current = false;
     }
-  }, [isOpen, sections]);
+  }, [isOpen]);
 
-  // Focus the DOM element whenever position changes
+  // this is all to produce the "ghost query" effect when navigating the grid.. this can be moved into the product selector if the highlighted product is comunicated back to ProductSelector.tsx.
+  const highlightedProduct = position
+    ? sections[position.sectionIndex]?.products[position.itemIndex]
+    : null;
+
+  const ghostSuffix = (() => {
+    if (!highlightedProduct || !query) return '';
+    const name = highlightedProduct.product.name;
+    if (!name.toLowerCase().startsWith(query.toLowerCase())) return '';
+    return name.slice(query.length);
+  })();
+
+  // Clamp position when sections change (e.g. query narrows results)
   useEffect(() => {
-    if (!position) return;
+    if (!isOpen || !position) return;
+    const section = sections[position.sectionIndex];
+    if (!section || position.itemIndex >= section.products.length) {
+      setPosition(
+        sections.length > 0 ? { sectionIndex: 0, itemIndex: 0 } : null,
+      );
+    }
+  }, [sections]);
+
+  // Only move DOM focus to grid item when user has explicitly navigated into grid
+  useEffect(() => {
+    if (!position || !focusInGrid.current) return;
     const key = makeKey(position);
     itemRefs.current.get(key)?.focus();
   }, [position]);
 
-  // Flatten position → absolute index within a section, and vice versa
   function move(delta: { rows?: number; cols?: number }) {
     setPosition((prev) => {
       if (!prev) return prev;
-
       const section = sections[prev.sectionIndex];
       if (!section) return prev;
-
       let { sectionIndex, itemIndex } = prev;
       const sectionLength = section.products.length;
 
       if (delta.cols) {
         const next = itemIndex + delta.cols;
         if (next < 0) {
-          // Move to previous section, last item
           if (sectionIndex === 0) return prev;
           const prevSection = sections[sectionIndex - 1];
           return {
@@ -81,7 +102,6 @@ export function useGridNavigation({
             itemIndex: prevSection.products.length - 1,
           };
         } else if (next >= sectionLength) {
-          // Move to next section, first item
           if (sectionIndex === sections.length - 1) return prev;
           return { sectionIndex: sectionIndex + 1, itemIndex: 0 };
         }
@@ -91,17 +111,23 @@ export function useGridNavigation({
       if (delta.rows) {
         const next = itemIndex + delta.rows * itemsPerRow;
         if (next < 0) {
-          if (sectionIndex === 0) return prev;
+          if (sectionIndex === 0) {
+            // Back to input
+            focusInGrid.current = false;
+            inputRef.current?.focus();
+            return prev;
+          }
           const prevSection = sections[sectionIndex - 1];
-          // Land on same column in last row of previous section
           const lastRowStart =
             Math.floor((prevSection.products.length - 1) / itemsPerRow) *
             itemsPerRow;
           const col = itemIndex % itemsPerRow;
-          const candidate = lastRowStart + col;
           return {
             sectionIndex: sectionIndex - 1,
-            itemIndex: Math.min(candidate, prevSection.products.length - 1),
+            itemIndex: Math.min(
+              lastRowStart + col,
+              prevSection.products.length - 1,
+            ),
           };
         } else if (next >= sectionLength) {
           if (sectionIndex === sections.length - 1) return prev;
@@ -125,30 +151,48 @@ export function useGridNavigation({
     (e: KeyboardEvent) => {
       if (!isOpen) return;
 
+      const inputFocused = document.activeElement === inputRef.current;
+
       switch (e.key) {
-        case 'ArrowRight':
-          e.preventDefault();
-          move({ cols: 1 });
-          break;
-        case 'ArrowLeft':
-          e.preventDefault();
-          move({ cols: -1 });
-          break;
         case 'ArrowDown':
           e.preventDefault();
-          move({ rows: 1 });
+          if (inputFocused) {
+            focusInGrid.current = true;
+            if (position) {
+              const key = makeKey(position);
+              itemRefs.current.get(key)?.focus();
+            } else if (sections.length > 0) {
+              setPosition({ sectionIndex: 0, itemIndex: 0 });
+            }
+          } else {
+            move({ rows: 1 });
+          }
           break;
         case 'ArrowUp':
           e.preventDefault();
+          if (inputFocused) break;
           move({ rows: -1 });
           break;
-        case 'Enter':
+        case 'ArrowRight':
+          e.preventDefault();
+          if (!inputFocused) move({ cols: 1 });
+          break;
+        case 'ArrowLeft':
+          e.preventDefault();
+          if (!inputFocused) move({ cols: -1 });
+          break;
         case ' ':
+          e.preventDefault();
+          break;
+        case 'Enter':
           e.preventDefault();
           if (position) {
             const item =
               sections[position.sectionIndex]?.products[position.itemIndex];
-            if (item?.status === 'selectable') onSelect(item.product);
+            if (item?.status === 'selectable') {
+              onSelect(item.product);
+              onClose();
+            }
           }
           break;
         case 'Escape':
@@ -156,7 +200,7 @@ export function useGridNavigation({
           break;
       }
     },
-    [isOpen, position, sections, itemsPerRow],
+    [isOpen, position, sections, itemsPerRow, inputRef],
   );
 
   useEffect(() => {
@@ -183,5 +227,5 @@ export function useGridNavigation({
     );
   }
 
-  return { getRefSetter, isActive };
+  return { getRefSetter, isActive, ghostSuffix };
 }
