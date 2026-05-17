@@ -46,6 +46,13 @@ export function FilterToggles({
         checked={rules.includeConverter}
         onChange={(v) => onSetRule('includeConverter', v)}
       />
+
+      {/* Packager */}
+      <Toggle
+        label='Packager Recipes'
+        checked={rules.includePackager}
+        onChange={(v) => onSetRule('includePackager', v)}
+      />
     </div>
   );
 }

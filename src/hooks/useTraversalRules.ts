@@ -28,6 +28,7 @@ import type { Product } from '@/types';
 export interface TraversalRules {
   includeAlternates: boolean;
   includeConverter: boolean;
+  includePackager: boolean;
   maxTier: number | null; // null = unlimited
 }
 
@@ -53,6 +54,7 @@ export interface TraversalConstraints {
 
 const DEFAULT_INCLUDE_ALTERNATES = false;
 const DEFAULT_INCLUDE_CONVERTER = true;
+const DEFAULT_INCLUDE_PACKAGER = false;
 const DEFAULT_MAX_TIER: number | null = null;
 
 // ============================================================================
@@ -86,6 +88,9 @@ export function useTraversalRules(): {
       ? false
       : DEFAULT_INCLUDE_CONVERTER;
 
+  const includePackager =
+    searchParams.get('packager') === 'true' || DEFAULT_INCLUDE_PACKAGER;
+
   const maxTierParam = searchParams.get('maxTier');
   let maxTier: number | null =
     maxTierParam !== null ? parseInt(maxTierParam, 10) : DEFAULT_MAX_TIER;
@@ -107,6 +112,7 @@ export function useTraversalRules(): {
     rules: {
       includeAlternates,
       includeConverter,
+      includePackager,
       maxTier,
     },
   };
@@ -129,6 +135,12 @@ export function useTraversalRules(): {
         value !== DEFAULT_INCLUDE_CONVERTER
           ? next.set('converter', String(value))
           : next.delete('converter');
+      }
+
+      if (key === 'includePackager') {
+        value !== DEFAULT_INCLUDE_PACKAGER
+          ? next.set('packager', String(value))
+          : next.delete('packager');
       }
 
       if (key === 'maxTier') {

@@ -69,10 +69,13 @@ function filterEdges(
       recipesByClassName.get(edge.targetId);
 
     // Edge between two products with no recipe — keep it
+    //TODO This line below seems to be watching for an impossible event... why is this here?  the comment above is fishy..
     if (!recipe) return true;
 
     if (!rules.includeAlternates && recipe.isAlternate) return false;
     if (!rules.includeConverter && recipe.producedIn === 'Converter')
+      return false;
+    if (!rules.includePackager && recipe.producedIn === 'Packager')
       return false;
     if (
       rules.maxTier !== null &&
@@ -318,6 +321,7 @@ export function useGraphBuilder(config: TraversalConfig): GraphBuilderResult {
     config.targetClassName,
     config.rules.includeAlternates,
     config.rules.includeConverter,
+    config.rules.includePackager,
     config.rules.maxTier,
   ]);
 }

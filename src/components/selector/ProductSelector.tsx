@@ -87,19 +87,16 @@ export function ProductSelector({
   const dragHandle = (
     <div
       onPointerDown={handleDragStart}
-      className='h-1.5 cursor-ns-resize bg-neutral-800 hover:bg-neutral-600 transition-colors shrink-0'
+      className='h-1.5 cursor-ns-resize bg-neutral-800 hover:bg-neutral-600 transition-colors shrink-0 my-1'
       title='Drag to resize'
     />
   );
 
   return (
-    <div
-      className='mt-2'
-      ref={containerRef}
-    >
+    <div ref={containerRef}>
       <div className='relative w-full'>
         {/* Ghost text layer */}
-        <div className='absolute inset-0 px-3 py-2 text-sm pointer-events-none flex items-center'>
+        <div className='absolute inset-0 px-3 pt-2 text-sm pointer-events-none flex items-center'>
           <span className='text-white invisible'>{query}</span>
           <span className='text-neutral-500'>{ghostSuffix}</span>
         </div>
@@ -111,12 +108,12 @@ export function ProductSelector({
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => setIsOpen(true)}
           placeholder={query ? '' : `Search ${enabledCount} products...`}
-          className='w-full px-3 py-2 rounded border border-neutral-600 bg-neutral-800 text-sm text-white placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-400'
+          className='w-full mt-2 px-3 py-2 rounded border border-neutral-600 bg-neutral-800 text-sm text-white placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-400'
         />
       </div>
       {/* Tier info line */}
       {maxTier !== null && (
-        <div className='mt-1 text-xs text-neutral-400'>
+        <div className='mt-2 text-xs text-neutral-400'>
           {enabledCount} of {totalCount} available at tier {maxTier}
         </div>
       )}

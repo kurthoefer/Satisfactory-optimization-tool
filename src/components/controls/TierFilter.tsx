@@ -14,7 +14,7 @@ export default function TierFilter({
   const effective = maxTier ?? TIERS[TIERS.length - 1];
 
   return (
-    <div className='flex items-center justify-between gap-1'>
+    <div className='flex items-center justify-between gap-1 w-[262px] mx-auto'>
       {TIERS.map((tier) => {
         const tokens = getTierTokens(tier);
         const isActive = tier === effective;

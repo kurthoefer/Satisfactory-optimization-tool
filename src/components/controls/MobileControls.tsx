@@ -61,7 +61,7 @@ export function MobileControls({
     <div ref={sheetRef}>
       {/* Sheet — renders above the strip */}
       {isOpen && (
-        <div className='bg-neutral-900 border-t border-neutral-700 flex flex-col'>
+        <div className='bg-neutral-900 border-t border-neutral-700 flex flex-col px-3'>
           {/* Tab bar */}
           <div className='flex border-b border-neutral-800'>
             {(['selector', 'filters'] as Tab[]).map((tab) => (
