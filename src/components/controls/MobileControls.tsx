@@ -101,6 +101,12 @@ export function MobileControls({
               maxTier={config.rules.maxTier}
               onSelect={handleSelectProduct}
               dragDirection='top'
+              isOpen={isOpen && activeTab === 'selector'}
+              onOpen={() => {
+                setIsOpen(true);
+                setActiveTab('selector');
+              }}
+              onClose={() => setIsOpen(false)}
             />
           )}
           {activeTab === 'filters' && (

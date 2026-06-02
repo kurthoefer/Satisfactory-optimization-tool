@@ -4,6 +4,8 @@
  * Appends node <g> groups to the SVG, each containing the
  * appropriate shape: circle for products, vesica piscis for recipes.
  *
+ * The target (selected) product node receives a tier-colored pulse ring.
+ *
  * Returns the D3 selection so the caller can wire up tick updates,
  * drag behavior, and click handlers.
  *
@@ -12,6 +14,7 @@
 
 import * as d3 from 'd3';
 import type { GraphNode } from '@/types';
+import type { Product } from '@/types';
 import { NODE_STYLES, RECIPE_PATH } from '../graphStyles';
 
 // ============================================================================
@@ -33,11 +36,16 @@ export type NodeSelection = d3.Selection<
  * Draw all nodes into the given SVG <g> container.
  *
  * Products get <circle>, recipes get <path> (vesica piscis).
+ * The selected product node gets a tier-colored pulse ring.
  */
 export function drawNodes(
   container: d3.Selection<SVGGElement, unknown, null, undefined>,
   nodes: GraphNode[],
+  selectedProduct: Product | null,
 ): NodeSelection {
+  const targetClassName = selectedProduct?.className ?? null;
+  const targetTier = selectedProduct?.tier ?? 0;
+
   const nodeGroups = container
     .append('g')
     .attr('class', 'nodes')
@@ -46,6 +54,22 @@ export function drawNodes(
     .join('g')
     .attr('class', 'node')
     .attr('cursor', 'pointer');
+
+  // --- Pulse ring on target node (appended first, renders behind) ---
+  if (targetClassName) {
+    nodeGroups
+      .filter((d) => d.id === targetClassName)
+      .style(
+        '--color-tier-active-border',
+        `var(--color-tier-${targetTier}-border)`,
+      )
+      .style('--color-tier-active-text', `var(--color-tier-${targetTier}-text)`)
+      .append('circle')
+      .attr('class', 'target-pulse')
+      .attr('r', NODE_STYLES.product.radius + 6)
+      .attr('fill', 'none')
+      .attr('stroke-width', 2);
+  }
 
   // --- Products: circles ---
   nodeGroups

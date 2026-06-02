@@ -197,4 +197,26 @@
   .animate-quirky {
     animation: quirky-logic 6s ease-in-out infinite;
   }
+
+  @keyframes pulse-ring {
+    0% {
+      opacity: 0.9;
+      stroke: var(--color-tier-active-text);
+      transform: scale(0.95);
+    }
+    50% {
+      opacity: 0.6;
+      stroke: var(--color-tier-active-border);
+      transform: scale(1.5);
+    }
+    100% {
+      opacity: 0.9;
+      stroke: var(--color-tier-active-text);
+      transform: scale(0.95);
+    }
+  }
+
+  .target-pulse {
+    animation: pulse-ring 2s ease-in-out infinite;
+  }
 }

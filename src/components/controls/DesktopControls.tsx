@@ -2,10 +2,13 @@
  * Floating panel anchored top-left on md+ screens.
  * Contains ProductSelector and FilterToggles stacked vertically.
  * Open by default, collapsible. Panel sizes to content.
- * Product grid height is controlled by the drag handle inside ProductSelector.
+ *
+ * Owns the ProductSelector's open/close state so the click-outside check
+ * can use the WHOLE panel as "inside" — filter toggles below the selector
+ * count as inside the panel and won't close the grid when clicked.
  */
 
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ProductSelector } from '@/components/selector/ProductSelector';
 import { FilterSummary } from './FilterSummary';
 import { FilterToggles } from './FilterToggles';
@@ -38,11 +41,31 @@ export function DesktopControls({
   onSetRule,
 }: DesktopControlsProps) {
   const [isOpen, setIsOpen] = useState(true);
+  const [selectorOpen, setSelectorOpen] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
 
-  console.log('here is config HERE IS CONFIG here is config', config);
+  const closeSelector = useCallback(() => setSelectorOpen(false), []);
+  const openSelector = useCallback(() => setSelectorOpen(true), []);
+
+  // Click outside the PANEL closes the selector grid. Anything inside the
+  // panel — including the filter toggles below the selector — counts as
+  // inside and leaves the grid open.
+  useEffect(() => {
+    if (!selectorOpen) return;
+    function handlePointerDown(e: PointerEvent) {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+        closeSelector();
+      }
+    }
+    window.addEventListener('pointerdown', handlePointerDown);
+    return () => window.removeEventListener('pointerdown', handlePointerDown);
+  }, [selectorOpen, closeSelector]);
 
   return (
-    <div className='w-72 rounded-lg border border-neutral-700 bg-neutral-900/90 backdrop-blur-sm shadow-xl flex flex-col overflow-hidden'>
+    <div
+      ref={panelRef}
+      className='w-72 rounded-lg border border-neutral-700 bg-neutral-900/90 backdrop-blur-sm shadow-xl flex flex-col overflow-hidden'
+    >
       {/* Header */}
       <div className='flex items-center justify-between px-3 py-2 border-b border-neutral-800 shrink-0'>
         <FilterSummary config={config} />
@@ -72,6 +95,9 @@ export function DesktopControls({
             <ProductSelector
               maxTier={config.rules.maxTier}
               onSelect={onSelectProduct}
+              isOpen={selectorOpen}
+              onOpen={openSelector}
+              onClose={closeSelector}
             />
           </div>
 

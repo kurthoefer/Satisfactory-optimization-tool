@@ -1,231 +1,176 @@
+/**
+ * Grid navigation primitives — position state and movement math.
+ *
+ * Deliberately small: this hook owns "where in the sectioned grid are we"
+ * and "given a delta, what's the new position." It does NOT own keyboard
+ * events or DOM focus — those are the component's job, because keyboards
+ * belong to elements and elements live in the render tree.
+ */
+
 import { useEffect, useRef, useState, useCallback } from 'react';
 import type { SelectorCategory } from './useProductSelector';
-import type { Product } from '@/types';
 import { TILE_MIN_WIDTH } from './constants';
 
-interface UseGridNavigationOptions {
-  isOpen: boolean;
-  sections: SelectorCategory[];
-  onSelect: (product: Product) => void;
-  onClose: () => void;
-  containerRef: React.RefObject<HTMLElement>;
-  inputRef: React.RefObject<HTMLInputElement>;
-  query: string;
-}
-
-interface GridPosition {
+export interface GridPosition {
   sectionIndex: number;
   itemIndex: number;
 }
 
-export function useGridNavigation({
-  isOpen,
-  sections,
-  onSelect,
-  onClose,
-  containerRef,
-  inputRef,
-  query,
-}: UseGridNavigationOptions) {
+interface UseGridNavigationOptions {
+  sections: SelectorCategory[];
+}
+
+/** Result of a `move` call — describes what happened so the caller can react. */
+export type MoveResult =
+  | { kind: 'moved'; position: GridPosition }
+  | { kind: 'noop' }
+  | { kind: 'exitUp' };
+
+export function useGridNavigation({ sections }: UseGridNavigationOptions) {
   const [position, setPosition] = useState<GridPosition | null>(null);
   const [itemsPerRow, setItemsPerRow] = useState(4);
-  const itemRefs = useRef<Map<string, HTMLElement>>(new Map());
-  const focusInGrid = useRef(false);
+  const itemsPerRowRef = useRef(itemsPerRow);
+  itemsPerRowRef.current = itemsPerRow;
 
-  // ResizeObserver — keep itemsPerRow in sync with container width
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
+  // ResizeObserver attached via ref callback. The component attaches this
+  // to the measurement wrapper — a div whose width is the true layout width
+  // the inner CSS grids use to compute their column count. The callback
+  // disconnects + rebinds automatically on mount/unmount, so there's no
+  // lifecycle question to manage.
+  const observerRef = useRef<ResizeObserver | null>(null);
+  const measureRef = useCallback((el: HTMLElement | null) => {
+    observerRef.current?.disconnect();
+    if (!el) {
+      observerRef.current = null;
+      return;
+    }
     const observer = new ResizeObserver(([entry]) => {
       const width = entry.contentRect.width;
       setItemsPerRow(Math.max(1, Math.floor(width / TILE_MIN_WIDTH)));
     });
     observer.observe(el);
-    return () => observer.disconnect();
-  }, [containerRef]);
+    observerRef.current = observer;
+  }, []);
 
-  // Reset when selector opens
+  // Clean up the observer when the hook unmounts.
+  useEffect(() => () => observerRef.current?.disconnect(), []);
+
+  // Clamp position when sections change.
   useEffect(() => {
-    if (isOpen) {
-      setPosition(
-        sections.length > 0 ? { sectionIndex: 0, itemIndex: 0 } : null,
-      );
-      focusInGrid.current = false;
-    }
-  }, [isOpen]);
-
-  // this is all to produce the "ghost query" effect when navigating the grid.. this can be moved into the product selector if the highlighted product is comunicated back to ProductSelector.tsx.
-  const highlightedProduct = position
-    ? sections[position.sectionIndex]?.products[position.itemIndex]
-    : null;
-
-  const ghostSuffix = (() => {
-    if (!highlightedProduct || !query) return '';
-    const name = highlightedProduct.product.name;
-    if (!name.toLowerCase().startsWith(query.toLowerCase())) return '';
-    return name.slice(query.length);
-  })();
-
-  // Clamp position when sections change (e.g. query narrows results)
-  useEffect(() => {
-    if (!isOpen || !position) return;
+    if (!position) return;
     const section = sections[position.sectionIndex];
     if (!section || position.itemIndex >= section.products.length) {
       setPosition(
         sections.length > 0 ? { sectionIndex: 0, itemIndex: 0 } : null,
       );
     }
-  }, [sections]);
+  }, [sections, position]);
 
-  // Only move DOM focus to grid item when user has explicitly navigated into grid
-  useEffect(() => {
-    if (!position || !focusInGrid.current) return;
-    const key = makeKey(position);
-    itemRefs.current.get(key)?.focus();
-  }, [position]);
-
-  function move(delta: { rows?: number; cols?: number }) {
-    setPosition((prev) => {
-      if (!prev) return prev;
-      const section = sections[prev.sectionIndex];
-      if (!section) return prev;
-      let { sectionIndex, itemIndex } = prev;
-      const sectionLength = section.products.length;
-
-      if (delta.cols) {
-        const next = itemIndex + delta.cols;
-        if (next < 0) {
-          if (sectionIndex === 0) return prev;
-          const prevSection = sections[sectionIndex - 1];
-          return {
-            sectionIndex: sectionIndex - 1,
-            itemIndex: prevSection.products.length - 1,
-          };
-        } else if (next >= sectionLength) {
-          if (sectionIndex === sections.length - 1) return prev;
-          return { sectionIndex: sectionIndex + 1, itemIndex: 0 };
-        }
-        return { sectionIndex, itemIndex: next };
+  const move = useCallback(
+    (delta: { rows?: number; cols?: number }): MoveResult => {
+      if (!position) {
+        if (sections.length === 0) return { kind: 'noop' };
+        const start: GridPosition = { sectionIndex: 0, itemIndex: 0 };
+        setPosition(start);
+        return { kind: 'moved', position: start };
       }
-
-      if (delta.rows) {
-        const next = itemIndex + delta.rows * itemsPerRow;
-        if (next < 0) {
-          if (sectionIndex === 0) {
-            // Back to input
-            focusInGrid.current = false;
-            inputRef.current?.focus();
-            return prev;
-          }
-          const prevSection = sections[sectionIndex - 1];
-          const lastRowStart =
-            Math.floor((prevSection.products.length - 1) / itemsPerRow) *
-            itemsPerRow;
-          const col = itemIndex % itemsPerRow;
-          return {
-            sectionIndex: sectionIndex - 1,
-            itemIndex: Math.min(
-              lastRowStart + col,
-              prevSection.products.length - 1,
-            ),
-          };
-        } else if (next >= sectionLength) {
-          if (sectionIndex === sections.length - 1) return prev;
-          const col = itemIndex % itemsPerRow;
-          return {
-            sectionIndex: sectionIndex + 1,
-            itemIndex: Math.min(
-              col,
-              sections[sectionIndex + 1].products.length - 1,
-            ),
-          };
-        }
-        return { sectionIndex, itemIndex: next };
-      }
-
-      return prev;
-    });
-  }
-
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent) => {
-      if (!isOpen) return;
-
-      const inputFocused = document.activeElement === inputRef.current;
-
-      switch (e.key) {
-        case 'ArrowDown':
-          e.preventDefault();
-          if (inputFocused) {
-            focusInGrid.current = true;
-            if (position) {
-              const key = makeKey(position);
-              itemRefs.current.get(key)?.focus();
-            } else if (sections.length > 0) {
-              setPosition({ sectionIndex: 0, itemIndex: 0 });
-            }
-          } else {
-            move({ rows: 1 });
-          }
-          break;
-        case 'ArrowUp':
-          e.preventDefault();
-          if (inputFocused) break;
-          move({ rows: -1 });
-          break;
-        case 'ArrowRight':
-          e.preventDefault();
-          if (!inputFocused) move({ cols: 1 });
-          break;
-        case 'ArrowLeft':
-          e.preventDefault();
-          if (!inputFocused) move({ cols: -1 });
-          break;
-        case ' ':
-          e.preventDefault();
-          break;
-        case 'Enter':
-          e.preventDefault();
-          if (position) {
-            const item =
-              sections[position.sectionIndex]?.products[position.itemIndex];
-            if (item?.status === 'selectable') {
-              onSelect(item.product);
-              onClose();
-            }
-          }
-          break;
-        case 'Escape':
-          onClose();
-          break;
-      }
+      const next = computeNext(
+        position,
+        delta,
+        sections,
+        itemsPerRowRef.current,
+      );
+      if (next === 'exitUp') return { kind: 'exitUp' };
+      if (next === null) return { kind: 'noop' };
+      setPosition(next);
+      return { kind: 'moved', position: next };
     },
-    [isOpen, position, sections, itemsPerRow, inputRef],
+    [position, sections],
   );
 
-  useEffect(() => {
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleKeyDown]);
-
-  function makeKey({ sectionIndex, itemIndex }: GridPosition) {
-    return `${sectionIndex}-${itemIndex}`;
-  }
-
-  function getRefSetter(sectionIndex: number, itemIndex: number) {
-    return (el: HTMLElement | null) => {
-      const key = makeKey({ sectionIndex, itemIndex });
-      if (el) itemRefs.current.set(key, el);
-      else itemRefs.current.delete(key);
-    };
-  }
-
-  function isActive(sectionIndex: number, itemIndex: number) {
-    return (
+  const isActive = useCallback(
+    (sectionIndex: number, itemIndex: number) =>
       position?.sectionIndex === sectionIndex &&
-      position?.itemIndex === itemIndex
-    );
+      position?.itemIndex === itemIndex,
+    [position],
+  );
+
+  const clearPosition = useCallback(() => setPosition(null), []);
+
+  const enterAtStart = useCallback((): GridPosition | null => {
+    if (sections.length === 0) return null;
+    const start: GridPosition = { sectionIndex: 0, itemIndex: 0 };
+    setPosition(start);
+    return start;
+  }, [sections]);
+
+  return {
+    position,
+    move,
+    isActive,
+    clearPosition,
+    enterAtStart,
+    measureRef,
+  };
+}
+
+// ─── Pure movement math ───────────────────────────────────────────────────────
+
+function computeNext(
+  pos: GridPosition,
+  delta: { rows?: number; cols?: number },
+  sections: SelectorCategory[],
+  itemsPerRow: number,
+): GridPosition | 'exitUp' | null {
+  const section = sections[pos.sectionIndex];
+  if (!section) return null;
+  const sectionLength = section.products.length;
+
+  if (delta.cols) {
+    const next = pos.itemIndex + delta.cols;
+    if (next < 0) {
+      if (pos.sectionIndex === 0) return null;
+      const prevSection = sections[pos.sectionIndex - 1];
+      return {
+        sectionIndex: pos.sectionIndex - 1,
+        itemIndex: prevSection.products.length - 1,
+      };
+    } else if (next >= sectionLength) {
+      if (pos.sectionIndex === sections.length - 1) return null;
+      return { sectionIndex: pos.sectionIndex + 1, itemIndex: 0 };
+    }
+    return { sectionIndex: pos.sectionIndex, itemIndex: next };
   }
 
-  return { getRefSetter, isActive, ghostSuffix };
+  if (delta.rows) {
+    const next = pos.itemIndex + delta.rows * itemsPerRow;
+    if (next < 0) {
+      if (pos.sectionIndex === 0) return 'exitUp';
+      const prevSection = sections[pos.sectionIndex - 1];
+      const lastRowStart =
+        Math.floor((prevSection.products.length - 1) / itemsPerRow) *
+        itemsPerRow;
+      const col = pos.itemIndex % itemsPerRow;
+      return {
+        sectionIndex: pos.sectionIndex - 1,
+        itemIndex: Math.min(
+          lastRowStart + col,
+          prevSection.products.length - 1,
+        ),
+      };
+    } else if (next >= sectionLength) {
+      if (pos.sectionIndex === sections.length - 1) return null;
+      const col = pos.itemIndex % itemsPerRow;
+      return {
+        sectionIndex: pos.sectionIndex + 1,
+        itemIndex: Math.min(
+          col,
+          sections[pos.sectionIndex + 1].products.length - 1,
+        ),
+      };
+    }
+    return { sectionIndex: pos.sectionIndex, itemIndex: next };
+  }
+
+  return null;
 }

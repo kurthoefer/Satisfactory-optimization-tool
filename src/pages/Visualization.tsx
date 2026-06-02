@@ -34,6 +34,9 @@ export default function Visualization() {
       <GraphCanvas
         nodes={nodes}
         links={links}
+        selectedProduct={selectedProduct}
+        // onNodeClick — reserved for node interactivity (neighbor highlight,
+        // SCC expand/collapse, stats panel, navigation). Not yet wired up.
       />
 
       {/* Desktop controls — floats top-left, md and up */}

@@ -17,7 +17,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 
-import type { GraphNode, GraphEdge } from '@/types';
+import type { GraphNode, GraphEdge, Product } from '@/types';
 import { drawLinks } from './renderers/drawLinks';
 import { drawNodes } from './renderers/drawNodes';
 import { createForceLayout } from './layouts/forceLayout';
@@ -29,6 +29,7 @@ import { createForceLayout } from './layouts/forceLayout';
 interface GraphCanvasProps {
   nodes: GraphNode[];
   links: GraphEdge[];
+  selectedProduct: Product | null;
   onNodeClick?: (nodeId: string) => void;
 }
 
@@ -39,6 +40,7 @@ interface GraphCanvasProps {
 export default function GraphCanvas({
   nodes,
   links,
+  selectedProduct,
   onNodeClick,
 }: GraphCanvasProps) {
   const svgRef = useRef<SVGSVGElement>(null);
@@ -76,7 +78,7 @@ export default function GraphCanvas({
 
     // --- Render (order matters: links behind nodes) ---
     const linkSelection = drawLinks(g, links);
-    const nodeSelection = drawNodes(g, nodes);
+    const nodeSelection = drawNodes(g, nodes, selectedProduct);
 
     // --- Hover events ---
     nodeSelection
