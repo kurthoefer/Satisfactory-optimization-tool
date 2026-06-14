@@ -1,5 +1,5 @@
 import type { Product } from '@/types';
-import { ImageWithFallback } from '@/components/ui/ImageWithFallback';
+import { LoadedImage } from '@/lib/image';
 import getProductImagePath from '@/utils/imageHelper';
 import { getTierTokens } from '@/styles/designTokens';
 
@@ -15,8 +15,11 @@ export function SelectedProductDisplay({
     <div
       className={`flex items-center gap-3 py-2 mt-2 rounded bg-neutral-800/60 border border-neutral-700 border-l-2 ${tierTokens.border}`}
     >
-      <div className='relative w-10 h-10 pl-3 shrink-0'>
-        <ImageWithFallback
+      {/* `relative` dropped: it was only needed for ImageWithFallback's
+          absolutely-positioned hidden <img> during load. LoadedImage swaps
+          slot ↔ image, so it isn't required anymore. */}
+      <div className='w-10 h-10 pl-3 shrink-0'>
+        <LoadedImage
           src={getProductImagePath(product.className)}
           alt={product.name}
           className='w-10 h-10 object-contain'

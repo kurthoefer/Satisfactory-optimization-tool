@@ -1,3 +1,4 @@
+//! DEPRECATED
 //* Category section header in the dropdown
 
 interface CategoryHeaderProps {

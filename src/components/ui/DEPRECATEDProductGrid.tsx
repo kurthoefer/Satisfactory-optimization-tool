@@ -1,4 +1,4 @@
-//TODO size of the icons for the dropdown are controlled by this horrible string bellow lol
+//! DEPRECATED
 import { forwardRef } from 'react';
 
 interface ProductGridProps {
