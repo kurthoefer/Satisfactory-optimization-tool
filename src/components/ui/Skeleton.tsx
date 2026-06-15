@@ -13,12 +13,3 @@ export const Skeleton: React.FC<SkeletonProps> = ({ className, ...props }) => {
     />
   );
 };
-
-// export const Skeleton: React.FC<SkeletonProps> = ({ className, ...props }) => {
-//   return (
-//     <div
-//       className={`animate-pulse rounded bg-gray-200 ${className}`}
-//       {...props}
-//     />
-//   );
-// };
