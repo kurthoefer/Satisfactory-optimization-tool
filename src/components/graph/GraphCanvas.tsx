@@ -1,19 +1,3 @@
-/**
- * GraphCanvas.tsx
- *
- * Rendering terminal for the graph visualization.
- * Receives pre-filtered { nodes, links } from the graph builder.
- *
- * Orchestrates:
- *   1. SVG setup and zoom
- *   2. Rendering (delegated to drawLinks + drawNodes)
- *   3. Layout (delegated to forceLayout, future: d3-dag)
- *   4. Hover tooltip (React panel, driven by D3 mouse events)
- *
- * Does NOT know about products, recipes, URLs, or traversal rules.
- * Data goes in, visuals come out, interactions bubble up.
- */
-
 import { useCallback, useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 
@@ -21,6 +5,55 @@ import type { GraphNode, GraphEdge, Product } from '@/types';
 import { drawLinks } from './renderers/drawLinks';
 import { drawNodes } from './renderers/drawNodes';
 import { createForceLayout } from './layouts/forceLayout';
+import { LoadedImage } from '@/lib/image';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { CursorTooltip } from '@/components/ui/CursorTooltip';
+// import { imageUrl } from '@/utils/imageHelper'; // ← wire to your actual export
+import getProductImagePath from '@/utils/imageHelper';
+
+// ============================================================================
+// HOVER STATE
+// ============================================================================
+
+interface HoverState {
+  node: GraphNode;
+  x: number;
+  y: number;
+}
+
+// ============================================================================
+// TOOLTIP CONTENT
+//
+// Scoped here for now — single consumer. Hoists to product/ | entities/ the
+// moment SelectedProductDisplay or the attention shelf becomes consumer #2.
+//
+// Minimal peek for now: thumbnail + label. The real fields, design-token
+// styling, and the product-vs-recipe treatment land in the content pass.
+// ============================================================================
+
+function NodeTooltipContent({ node }: { node: GraphNode }) {
+  const { data } = node.payload;
+  if (!data) return null;
+
+  const label =
+    'name' in data ? data.name : 'displayName' in data ? data.displayName : '';
+  if (!label) return null;
+
+  return (
+    <div className='flex items-center gap-2 rounded-xl border bg-white/80 px-3 py-2 text-sm shadow-sm backdrop-blur-sm'>
+      <LoadedImage
+        src={getProductImagePath(data.className)}
+        // Recipe nodes may key off the produced-in machine or the primary
+        // output product — that's a content-pass decision.
+        alt={label}
+        active
+        placeholder={<Skeleton className='h-8 w-8 rounded' />}
+        className='h-8 w-8 rounded object-contain'
+      />
+      <span className='font-medium'>{label}</span>
+    </div>
+  );
+}
 
 // ============================================================================
 // PROPS
@@ -45,14 +78,24 @@ export default function GraphCanvas({
 }: GraphCanvasProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const cleanupRef = useRef<(() => void) | null>(null);
-  const [hoveredNode, setHoveredNode] = useState<GraphNode | null>(null);
+  const [hover, setHover] = useState<HoverState | null>(null);
 
-  // Stable callback ref so the D3 effect doesn't re-run on hover changes
-  const hoveredNodeRef = useRef(setHoveredNode);
-  hoveredNodeRef.current = setHoveredNode;
+  // Insulate the D3 effect from hover updates: handlers reach the *latest*
+  // setter through a ref, so hover/coord changes never re-run the heavy
+  // effect. (Your existing hoveredNode pattern, extended to coordinates.)
+  const setHoverRef = useRef(setHover);
+  setHoverRef.current = setHover;
 
-  const onHover = useCallback((node: GraphNode | null) => {
-    hoveredNodeRef.current(node);
+  const onEnter = useCallback((node: GraphNode, x: number, y: number) => {
+    setHoverRef.current({ node, x, y });
+  }, []);
+
+  const onMove = useCallback((x: number, y: number) => {
+    setHoverRef.current((prev) => (prev ? { ...prev, x, y } : prev));
+  }, []);
+
+  const onLeave = useCallback(() => {
+    setHoverRef.current(null);
   }, []);
 
   useEffect(() => {
@@ -81,9 +124,13 @@ export default function GraphCanvas({
     const nodeSelection = drawNodes(g, nodes, selectedProduct);
 
     // --- Hover events ---
+    // enter: capture node + initial coords. move: keep the tooltip following
+    // the pointer (coords only update while over a node — exactly when the
+    // tooltip is shown). leave: clear.
     nodeSelection
-      .on('mouseenter', (_event, d) => onHover(d))
-      .on('mouseleave', () => onHover(null));
+      .on('mouseenter', (event, d) => onEnter(d, event.clientX, event.clientY))
+      .on('mousemove', (event) => onMove(event.clientX, event.clientY))
+      .on('mouseleave', () => onLeave());
 
     // --- Layout ---
     const { cleanup } = createForceLayout({
@@ -102,7 +149,10 @@ export default function GraphCanvas({
       cleanup();
       cleanupRef.current = null;
     };
-  }, [nodes, links, onNodeClick, onHover]);
+    // Note: selectedProduct is read here but intentionally left out of deps to
+    // preserve your original behavior. If selection should redraw the graph,
+    // add it — flagging in case that omission was an oversight rather than a choice.
+  }, [nodes, links, onNodeClick, onEnter, onMove, onLeave]);
 
   return (
     <div className='absolute inset-0 overflow-hidden'>
@@ -110,55 +160,13 @@ export default function GraphCanvas({
         ref={svgRef}
         className='w-full h-full'
       />
-      {hoveredNode && <NodeInfoPanel node={hoveredNode} />}
+      <CursorTooltip
+        active={!!hover}
+        x={hover?.x ?? 0}
+        y={hover?.y ?? 0}
+      >
+        {hover && <NodeTooltipContent node={hover.node} />}
+      </CursorTooltip>
     </div>
   );
-}
-
-// ============================================================================
-// INFO PANEL
-// ============================================================================
-
-/** Clean up raw form strings like "RF_SOLID" → "Solid" */
-function formatForm(form: string): string {
-  return form
-    .replace(/^RF_/, '')
-    .toLowerCase()
-    .replace(/^\w/, (c) => c.toUpperCase());
-}
-
-function NodeInfoPanel({ node }: { node: GraphNode }) {
-  const { type, data } = node.payload;
-
-  if (!data) return null;
-
-  if (type === 'product' && 'name' in data) {
-    return (
-      <div className='absolute bottom-4 left-4 z-10 bg-white/80 backdrop-blur-sm px-4 py-3 rounded-xl text-sm border shadow-sm max-w-xs pointer-events-none'>
-        <div className='font-semibold text-gray-900'>{data.name}</div>
-        <div className='text-gray-500 text-xs mt-1'>
-          {formatForm(data.form)} · {data.category}
-        </div>
-        <div className='font-mono text-[10px] text-gray-400 mt-1'>
-          {node.id}
-        </div>
-      </div>
-    );
-  }
-
-  if (type === 'recipe' && 'displayName' in data) {
-    return (
-      <div className='absolute bottom-4 left-4 z-10 bg-white/80 backdrop-blur-sm px-4 py-3 rounded-xl text-sm border shadow-sm max-w-xs pointer-events-none'>
-        <div className='font-semibold text-gray-900'>{data.displayName}</div>
-        <div className='text-gray-500 text-xs mt-1'>
-          {data.type} · {data.producedIn}
-        </div>
-        <div className='font-mono text-[10px] text-gray-400 mt-1'>
-          {node.id}
-        </div>
-      </div>
-    );
-  }
-
-  return null;
 }

@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 export default function Navigation() {
   return (
     // Narrowed from p-4 to py-2 for a "sharp" slim profile
-    <nav className='py-2 px-6 bg-gray-950 border-b border-orange-600/50 flex items-center justify-between'>
+    <nav className='py-2 px-6 bg-gray-950 border-b border-orange-600/50 flex items-center justify-between shrink-0'>
       {/* Brand Section */}
       <Link
         to='/'

@@ -15,7 +15,7 @@ interface WarningBubbleProps {
   duration?: number;
 }
 
-export default function WarningBubble({
+export function WarningBubble({
   message,
   duration = 5000,
 }: WarningBubbleProps) {

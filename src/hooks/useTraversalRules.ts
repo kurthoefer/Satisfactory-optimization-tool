@@ -17,7 +17,7 @@
  * Everything else consumes the config object it returns.
  */
 
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { productsBySlug } from '@/data/indexes';
 import type { Product } from '@/types';
 
@@ -67,17 +67,26 @@ export function useTraversalRules(): {
     key: K,
     value: TraversalRules[K],
   ) => void;
+  stampId: string | null;
+  applyConfig: (
+    config: TraversalConfig,
+    stampId: string,
+    opts?: { replace?: boolean },
+  ) => void;
   constraints: TraversalConstraints;
   warning: string | null;
   selectedProduct: Product | null;
 } {
   const { productSlug } = useParams<{ productSlug: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
 
   // --- Resolve target product ---
   const product = productSlug
     ? (productsBySlug.get(productSlug) ?? null)
     : null;
+
+  const stampId = searchParams.get('stamp');
 
   // --- Read search params with defaults ---
   const includeAlternates =
@@ -153,9 +162,35 @@ export function useTraversalRules(): {
     });
   };
 
+  const applyConfig = (
+    next: TraversalConfig,
+    stampId: string,
+    opts?: { replace?: boolean },
+  ) => {
+    const params = new URLSearchParams();
+    const r = next.rules;
+    if (r.includeAlternates !== DEFAULT_INCLUDE_ALTERNATES)
+      params.set('alternates', String(r.includeAlternates));
+    if (r.includeConverter !== DEFAULT_INCLUDE_CONVERTER)
+      params.set('converter', String(r.includeConverter));
+    if (r.includePackager !== DEFAULT_INCLUDE_PACKAGER)
+      params.set('packager', String(r.includePackager));
+    if (r.maxTier !== null) params.set('maxTier', String(r.maxTier));
+    params.set('stamp', stampId);
+
+    const path = next.targetSlug
+      ? `/visualize/${next.targetSlug}`
+      : '/visualize';
+    navigate(`${path}?${params.toString()}`, {
+      replace: opts?.replace ?? false,
+    });
+  };
+
   return {
     config,
     setRule,
+    applyConfig,
+    stampId,
     constraints: { minTier },
     warning,
     selectedProduct: product,

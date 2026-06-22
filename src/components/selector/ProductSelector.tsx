@@ -17,7 +17,7 @@
 import { useRef, useCallback, useEffect } from 'react';
 import { useProductSelector } from './useProductSelector';
 import { useGridNavigation, type GridPosition } from './useGridNavigation';
-import { useDraggableHeight } from './useDraggableHeight';
+import { useDraggableHeight } from '@/hooks/useDraggableHeight';
 import { deriveGhost } from './deriveGhost';
 import { GhostInput, type GhostInputHandle } from './GhostInput';
 import { SelectorGrid } from './SelectorGrid';

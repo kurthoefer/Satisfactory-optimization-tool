@@ -1,6 +1,5 @@
 /**
  * Compact read-only display of the current TraversalRules.
- * Shared between DesktopControls and MobileControls.
  * Always visible — gives the user a quick read of active filters
  * without opening the full toggle panel.
  */

@@ -52,10 +52,9 @@ export const ProductTile = forwardRef<HTMLButtonElement, ProductTileProps>(
         }}
         className={cn(
           'flex flex-col items-center justify-center gap-1 p-1 rounded text-xs text-center',
-          'border-2 transition-colors',
-          tier.border,
+          'border-2 transition-colors outline-none',
+          focused ? tier.borderFocus : tier.border,
           !disabled && 'cursor-pointer hover:bg-neutral-700/60',
-          focused && 'ring-2 ring-white',
           disabled && 'opacity-50 cursor-not-allowed',
         )}
       >
