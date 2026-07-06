@@ -6,6 +6,7 @@ import { appendGooFilter, drawHulls } from './renderers/drawHulls';
 import { drawLinks } from './renderers/drawLinks';
 import { drawNodes } from './renderers/drawNodes';
 import { createEmphasisPainter } from './renderers/nodeEmphasis';
+import { createCollapseController } from './renderers/collapse';
 import { createForceLayout } from './layouts/forceLayout';
 import { NodeTooltipContent } from './NodeTooltipContent';
 import { pinnedStore } from '@/lib/pinned';
@@ -47,8 +48,6 @@ export default function GraphCanvas({
   const cleanupRef = useRef<(() => void) | null>(null);
   const [hover, setHover] = useState<HoverState | null>(null);
 
-  // Insulate the D3 effect from hover updates: handlers reach the latest setter
-  // through a ref, so hover/coord changes never re-run the heavy effect.
   const setHoverRef = useRef(setHover);
   setHoverRef.current = setHover;
 
@@ -115,7 +114,16 @@ export default function GraphCanvas({
 
     simulation.on('tick.hulls', hulls.update);
 
-    // --- Emphasis (target + pinned: enlarge + thumbnail) and flow classes ---
+    // --- Collapse: click a hull to converge its SCC to a point ---
+    const collapse = createCollapseController(
+      nodes,
+      nodeSelection,
+      simulation,
+      selectedProduct?.className ?? null,
+    );
+    hulls.onClick(collapse.toggle);
+
+    // --- Emphasis (target + pinned) and flow classes ---
     const paintEmphasis = createEmphasisPainter(
       svg,
       nodeSelection,

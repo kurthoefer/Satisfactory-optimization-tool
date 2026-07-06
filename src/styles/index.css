@@ -214,4 +214,30 @@
     stroke-dasharray: 8 8;
     animation: flow-march 0.6s linear infinite;
   }
+
+  /* ============================================
+   SCROLLBAR
+   ============================================ */
+
+  .scrollbar-mac {
+    /* Firefox */
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-gray-400) transparent;
+  }
+
+  /* WebKit */
+  .scrollbar-mac::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .scrollbar-mac::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-mac::-webkit-scrollbar-thumb {
+    /* Using standard Tailwind v4 color variables */
+    background-color: var(--color-gray-400);
+    border-radius: 10px;
+  }
 }

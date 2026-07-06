@@ -1,15 +1,14 @@
 /**
  * drawHulls.ts
  *
- * Renders each SCC as a soft "soap bubble" enclosure — NOT a convex polygon.
- * Every member gets a circle; a gooey SVG filter (blur + alpha-clamp) fuses
- * overlapping circles into one organic blob per cycle.
+ * Renders each SCC as a soft "soap bubble" via a gooey filter (blur +
+ * alpha-clamp) that fuses per-member circles into one organic blob. Each hull
+ * gets its own stable color (hashed from its min member id).
  *
- * Each hull gets its OWN color, derived from a stable property of the cycle
- * (its lexicographically-min member id) so the color survives SCC-index
- * reshuffling across filter/target recomputes — a given loop keeps its hue.
+ * The blob is the collapse affordance: onClick binds a handler to each hull,
+ * receiving its SCC group id.
  *
- * Pure rendering. Returns update() to reposition member circles each tick.
+ * Pure rendering. update() repositions member circles each tick.
  */
 
 import * as d3 from 'd3';
@@ -33,24 +32,25 @@ const HULL_MAX_GROUPS = 24; // perf cap — largest SCCs win
 
 export interface HullRenderResult {
   update: () => void;
+  onClick: (handler: (groupId: number) => void) => void;
+}
+
+interface HullDatum {
+  groupId: number;
+  members: GraphNode[];
 }
 
 // ============================================================================
 // COLOR
 // ============================================================================
 
-/**
- * Stable hue for a cycle. Keyed on the min member id (not the SCC index), so
- * the same loop keeps its color across recomputes even as indices reshuffle.
- */
+/** Stable hue for a cycle, keyed on min member id (survives index reshuffling). */
 function hullHue(members: GraphNode[]): number {
   let minId = members[0].id;
   for (const m of members) if (m.id < minId) minId = m.id;
 
   let h = 0;
-  for (let i = 0; i < minId.length; i++) {
-    h = (h * 31 + minId.charCodeAt(i)) | 0;
-  }
+  for (let i = 0; i < minId.length; i++) h = (h * 31 + minId.charCodeAt(i)) | 0;
   return Math.abs(h) % 360;
 }
 
@@ -103,8 +103,9 @@ export function drawHulls(
     else byGroup.set(n.sccGroupId, [n]);
   }
 
-  const hullData = [...byGroup.values()]
-    .sort((a, b) => b.length - a.length)
+  const hullData: HullDatum[] = [...byGroup.entries()]
+    .map(([groupId, members]) => ({ groupId, members }))
+    .sort((a, b) => b.members.length - a.members.length)
     .slice(0, HULL_MAX_GROUPS);
 
   const hullsRoot = container.append('g').attr('class', 'hulls');
@@ -112,7 +113,7 @@ export function drawHulls(
   // One filtered <g> PER SCC. Fill + opacity live on the group; circles inherit
   // the fill, so the whole blob shares one hue and dims as one merged result.
   const hullGroups = hullsRoot
-    .selectAll<SVGGElement, GraphNode[]>('g.hull')
+    .selectAll<SVGGElement, HullDatum>('g.hull')
     .data(hullData)
     .join('g')
     .attr('class', 'hull')
@@ -120,18 +121,24 @@ export function drawHulls(
     .attr('opacity', HULL_OPACITY)
     .attr(
       'fill',
-      (members) => `hsl(${hullHue(members)} ${HULL_SAT}% ${HULL_LIGHT}%)`,
+      (d) => `hsl(${hullHue(d.members)} ${HULL_SAT}% ${HULL_LIGHT}%)`,
     );
 
   const blobs = hullGroups
     .selectAll<SVGCircleElement, GraphNode>('circle')
-    .data((members) => members)
+    .data((d) => d.members)
     .join('circle')
-    .attr('r', HULL_BLOB_RADIUS); // no fill — inherits the group's hue
+    .attr('r', HULL_BLOB_RADIUS);
 
   const update = () => {
     blobs.attr('cx', (d) => d.x ?? 0).attr('cy', (d) => d.y ?? 0);
   };
 
-  return { update };
+  const onClick = (handler: (groupId: number) => void) => {
+    hullGroups
+      .style('cursor', 'pointer')
+      .on('click', (_event, d) => handler(d.groupId));
+  };
+
+  return { update, onClick };
 }
