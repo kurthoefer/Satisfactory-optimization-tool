@@ -22,5 +22,8 @@ export function drawLinks(
     .join('line')
     .attr('stroke', LINK_STYLES.stroke)
     .attr('stroke-opacity', LINK_STYLES.opacity)
-    .attr('stroke-width', (d) => Math.max(1, Math.log10(d.throughput + 1) * 2));
+    .attr(
+      'stroke-width',
+      (d) => Math.max(1, Math.log10(d.throughput + 1) * 2) / 2,
+    );
 }
