@@ -2,14 +2,14 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 
 import type { GraphNode, GraphEdge, Product } from '@/types';
+import { appendGooFilter, drawHulls } from './renderers/drawHulls';
 import { drawLinks } from './renderers/drawLinks';
 import { drawNodes } from './renderers/drawNodes';
+import { createEmphasisPainter } from './renderers/nodeEmphasis';
 import { createForceLayout } from './layouts/forceLayout';
-import { LoadedImage } from '@/lib/image';
-import { Skeleton } from '@/components/ui/Skeleton';
+import { NodeTooltipContent } from './NodeTooltipContent';
+import { pinnedStore } from '@/lib/pinned';
 import { CursorTooltip } from '@/components/ui/CursorTooltip';
-// import { imageUrl } from '@/utils/imageHelper'; // ← wire to your actual export
-import getProductImagePath from '@/utils/imageHelper';
 
 // ============================================================================
 // HOVER STATE
@@ -22,40 +22,6 @@ interface HoverState {
 }
 
 // ============================================================================
-// TOOLTIP CONTENT
-//
-// Scoped here for now — single consumer. Hoists to product/ | entities/ the
-// moment SelectedProductDisplay or the attention shelf becomes consumer #2.
-//
-// Minimal peek for now: thumbnail + label. The real fields, design-token
-// styling, and the product-vs-recipe treatment land in the content pass.
-// ============================================================================
-
-function NodeTooltipContent({ node }: { node: GraphNode }) {
-  const { data } = node.payload;
-  if (!data) return null;
-
-  const label =
-    'name' in data ? data.name : 'displayName' in data ? data.displayName : '';
-  if (!label) return null;
-
-  return (
-    <div className='flex items-center gap-2 rounded-xl border bg-white/80 px-3 py-2 text-sm shadow-sm backdrop-blur-sm'>
-      <LoadedImage
-        src={getProductImagePath(data.className)}
-        // Recipe nodes may key off the produced-in machine or the primary
-        // output product — that's a content-pass decision.
-        alt={label}
-        active
-        placeholder={<Skeleton className='h-8 w-8 rounded' />}
-        className='h-8 w-8 rounded object-contain'
-      />
-      <span className='font-medium'>{label}</span>
-    </div>
-  );
-}
-
-// ============================================================================
 // PROPS
 // ============================================================================
 
@@ -63,6 +29,7 @@ interface GraphCanvasProps {
   nodes: GraphNode[];
   links: GraphEdge[];
   selectedProduct: Product | null;
+  /** Optional extra hook fired alongside the pin toggle on node click. */
   onNodeClick?: (nodeId: string) => void;
 }
 
@@ -80,9 +47,8 @@ export default function GraphCanvas({
   const cleanupRef = useRef<(() => void) | null>(null);
   const [hover, setHover] = useState<HoverState | null>(null);
 
-  // Insulate the D3 effect from hover updates: handlers reach the *latest*
-  // setter through a ref, so hover/coord changes never re-run the heavy
-  // effect. (Your existing hoveredNode pattern, extended to coordinates.)
+  // Insulate the D3 effect from hover updates: handlers reach the latest setter
+  // through a ref, so hover/coord changes never re-run the heavy effect.
   const setHoverRef = useRef(setHover);
   setHoverRef.current = setHover;
 
@@ -103,6 +69,7 @@ export default function GraphCanvas({
 
     const svg = d3.select(svgRef.current);
     svg.selectAll('*').remove();
+    appendGooFilter(svg);
 
     const width = svgRef.current.clientWidth || 800;
     const height = svgRef.current.clientHeight || 600;
@@ -119,40 +86,58 @@ export default function GraphCanvas({
         }),
     );
 
-    // --- Render (order matters: links behind nodes) ---
+    // --- Render (paint order: hulls behind, then links, then nodes) ---
+    const hulls = drawHulls(g, nodes);
     const linkSelection = drawLinks(g, links);
-    const nodeSelection = drawNodes(g, nodes, selectedProduct);
+    const nodeSelection = drawNodes(g, nodes);
 
     // --- Hover events ---
-    // enter: capture node + initial coords. move: keep the tooltip following
-    // the pointer (coords only update while over a node — exactly when the
-    // tooltip is shown). leave: clear.
     nodeSelection
       .on('mouseenter', (event, d) => onEnter(d, event.clientX, event.clientY))
       .on('mousemove', (event) => onMove(event.clientX, event.clientY))
       .on('mouseleave', () => onLeave());
 
-    // --- Layout ---
-    const { cleanup } = createForceLayout({
+    // --- Layout: node click toggles pin membership ---
+    const { simulation, cleanup } = createForceLayout({
       width,
       height,
       nodes,
       links,
       nodeSelection,
       linkSelection,
-      onNodeClick,
+      onNodeClick: (id) => {
+        pinnedStore.toggle(id);
+        onNodeClick?.(id);
+      },
     });
 
     cleanupRef.current = cleanup;
 
+    simulation.on('tick.hulls', hulls.update);
+
+    // --- Emphasis (target + pinned: enlarge + thumbnail) and flow classes ---
+    const paintEmphasis = createEmphasisPainter(
+      svg,
+      nodeSelection,
+      selectedProduct,
+    );
+    const repaint = () => {
+      paintEmphasis();
+      linkSelection.classed('flow', (d) => {
+        const s = typeof d.source === 'string' ? d.source : d.source.id;
+        const t = typeof d.target === 'string' ? d.target : d.target.id;
+        return pinnedStore.has(s) || pinnedStore.has(t);
+      });
+    };
+    repaint();
+    const unsubPinned = pinnedStore.subscribe(repaint);
+
     return () => {
+      unsubPinned();
       cleanup();
       cleanupRef.current = null;
     };
-    // Note: selectedProduct is read here but intentionally left out of deps to
-    // preserve your original behavior. If selection should redraw the graph,
-    // add it — flagging in case that omission was an oversight rather than a choice.
-  }, [nodes, links, onNodeClick, onEnter, onMove, onLeave]);
+  }, [nodes, links, selectedProduct, onNodeClick, onEnter, onMove, onLeave]);
 
   return (
     <div className='absolute inset-0 overflow-hidden'>

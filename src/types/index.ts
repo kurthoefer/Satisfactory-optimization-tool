@@ -106,6 +106,27 @@ interface D3GraphNode {
 }
 
 /**
+ * A collapsed SCC rendered as one super-node. Stands in for its members while
+ * collapsed; expanding restores them. sccId is STABLE across recomputes (the
+ * collapsed set keys on it, like pins) — a representative member id, not the
+ * per-pass dense index the condensation uses internally.
+ */
+export interface SCCPayload {
+  sccId: string;
+  memberIds: string[];
+}
+
+/**
+ * Discriminated union: `type` tells you which `data` you have. No null — a
+ * reachable id resolving to neither product nor recipe is a build-time bug and
+ * throws at assembly rather than propagating a null through every consumer.
+ */
+export type NodePayload =
+  | { type: 'product'; data: Product }
+  | { type: 'recipe'; data: Recipe }
+  | { type: 'scc'; data: SCCPayload };
+
+/**
  * The node consumed by GraphCanvas.
  * Built by useGraphBuilder from domain data.
  * Canvas doesn't need to know about products, recipes, or filters —
@@ -113,15 +134,11 @@ interface D3GraphNode {
  */
 export interface GraphNode extends D3GraphNode {
   id: string;
-
-  payload: {
-    type: 'product' | 'recipe';
-    data: Product | Recipe | null;
-  };
-
+  payload: NodePayload;
   persistence: PersistenceScores;
   degree: number;
   sccGroupId: number | null;
+  sccLevel: number;
 }
 
 /**

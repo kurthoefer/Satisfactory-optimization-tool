@@ -7,7 +7,7 @@ An interactive production chain visualizer for [Satisfactory](https://www.satisf
 **[🔗 Live Demo](https://main.dmlpkp500ruhd.amplifyapp.com/)**
 
 <p align="center">
-  <img src="docs/demo.gif" alt="Selecting a product and watching the production graph assemble" width="800">
+  <img src="docs/demo.gif" alt="Selecting a product and watching the production graph assemble" width="400">
 </p>
 
 ---

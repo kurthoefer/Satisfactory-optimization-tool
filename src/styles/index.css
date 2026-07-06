@@ -198,25 +198,20 @@
     animation: quirky-logic 6s ease-in-out infinite;
   }
 
-  @keyframes pulse-ring {
-    0% {
-      opacity: 0.9;
-      stroke: var(--color-tier-active-text);
-      transform: scale(0.95);
-    }
-    50% {
-      opacity: 0.6;
-      stroke: var(--color-tier-active-border);
-      transform: scale(1.5);
-    }
-    100% {
-      opacity: 0.9;
-      stroke: var(--color-tier-active-text);
-      transform: scale(0.95);
+  /* Marching ants on edges incident to a pinned node.
+   Direction is intrinsic — the dashes march from the line's start (source) to
+   its end (target), i.e. along material flow, with no per-edge logic. */
+
+  @keyframes flow-march {
+    to {
+      stroke-dashoffset: -16; /* one full dash+gap cycle (8+8) → seamless loop */
     }
   }
 
-  .target-pulse {
-    animation: pulse-ring 2s ease-in-out infinite;
+  line.flow {
+    stroke: #38bdf8; /* brighter than the muted base so flow reads as active */
+    stroke-opacity: 0.9;
+    stroke-dasharray: 8 8;
+    animation: flow-march 0.6s linear infinite;
   }
 }

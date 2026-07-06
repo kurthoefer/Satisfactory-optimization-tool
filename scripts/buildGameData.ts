@@ -168,7 +168,7 @@ async function main() {
   // 9. DETECT SCCs (Tarjan's on edges)
   // --------------------------------------------------------------------------
   console.log('\n🕸️  Detecting Strongly Connected Components...');
-  const sccGroups = detectSCCs(edges);
+  const { groups: sccGroups } = detectSCCs(edges);
   const circularItems = sccGroups.flat();
   console.log(`   - Found ${sccGroups.length} true SCCs (Loops).`);
   console.log(`   - ${circularItems.length} items involved in loops.`);

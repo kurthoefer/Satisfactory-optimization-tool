@@ -22,6 +22,7 @@ import type {
   GraphEdge,
   TopologicalEdge,
   PersistenceScores,
+  NodePayload,
 } from '@/types';
 import type {
   TraversalConfig,
@@ -38,6 +39,7 @@ import {
 
 import { computePersistence } from '@/utils/computePersistence';
 import { detectSCCs } from '@/utils/detectSCCs';
+import { computeSCCLevels } from '@/utils/computeSCCLevels';
 
 // ============================================================================
 // TYPES
@@ -162,21 +164,28 @@ function computeGraphMetrics(
   filteredNodeScores: Record<string, number>;
   subgraphNodeScores: Record<string, number>;
   sccGroups: Map<string, number>;
+  sccLevelByNode: Map<string, number>; // NEW
 } {
-  // Filtered persistence: importance across the current filter context
   const filteredResult = computePersistence(filteredEdges);
-
-  // Subgraph persistence: importance within the target's dependency tree
   const subgraphResult = computePersistence(walkedEdges);
 
-  // SCC detection on the filtered graph
-  const sccGroupArrays = detectSCCs(filteredEdges);
+  // SCC detection now returns groups (true cycles) + the condensation DAG
+  const { groups, condensation } = detectSCCs(filteredEdges);
 
-  // Build className → group index map (same pattern as indexes.ts)
+  // sccGroupId source — className → hull group index (unchanged intent)
   const sccGroups = new Map<string, number>();
-  sccGroupArrays.forEach((group, groupIndex) => {
+  groups.forEach((group, groupIndex) => {
     for (const className of group) {
       sccGroups.set(className, groupIndex);
+    }
+  });
+
+  // sccLevel source — className → stratum. Total: every node gets a level.
+  const levels = computeSCCLevels(condensation);
+  const sccLevelByNode = new Map<string, number>();
+  condensation.members.forEach((group, superId) => {
+    for (const className of group) {
+      sccLevelByNode.set(className, levels[superId]);
     }
   });
 
@@ -184,6 +193,7 @@ function computeGraphMetrics(
     filteredNodeScores: filteredResult.nodeScores,
     subgraphNodeScores: subgraphResult.nodeScores,
     sccGroups,
+    sccLevelByNode,
   };
 }
 
@@ -201,6 +211,7 @@ function assembleGraph(
   filteredNodeScores: Record<string, number>,
   subgraphNodeScores: Record<string, number>,
   sccGroups: Map<string, number>,
+  sccLevelByNode: Map<string, number>, // NEW
 ): { nodes: GraphNode[]; links: GraphEdge[] } {
   // --- Nodes ---
   const nodes: GraphNode[] = [];
@@ -215,16 +226,21 @@ function assembleGraph(
       subgraph: subgraphNodeScores[id] ?? 0,
     };
 
+    let payload: NodePayload;
+    if (product) payload = { type: 'product', data: product };
+    else if (recipe) payload = { type: 'recipe', data: recipe };
+    else
+      throw new Error(
+        `assembleGraph: reachable id "${id}" is neither product nor recipe`,
+      );
+
     nodes.push({
       id,
-      payload: product
-        ? { type: 'product', data: product }
-        : recipe
-          ? { type: 'recipe', data: recipe }
-          : { type: 'product', data: null },
+      payload,
       persistence,
-      degree: 0, // Computed below
+      degree: 0,
       sccGroupId: sccGroups.get(id) ?? null,
+      sccLevel: sccLevelByNode.get(id) ?? 0,
     });
   }
 
@@ -304,8 +320,12 @@ export function useGraphBuilder(config: TraversalConfig): GraphBuilderResult {
     }
 
     // Phase 3: Compute persistence + SCCs
-    const { filteredNodeScores, subgraphNodeScores, sccGroups } =
-      computeGraphMetrics(filteredEdges, walkedEdges);
+    const {
+      filteredNodeScores,
+      subgraphNodeScores,
+      sccGroups,
+      sccLevelByNode,
+    } = computeGraphMetrics(filteredEdges, walkedEdges);
 
     // Phase 4: Assemble
     const { nodes, links } = assembleGraph(
@@ -314,6 +334,7 @@ export function useGraphBuilder(config: TraversalConfig): GraphBuilderResult {
       filteredNodeScores,
       subgraphNodeScores,
       sccGroups,
+      sccLevelByNode, // NEW
     );
 
     return { nodes, links };
