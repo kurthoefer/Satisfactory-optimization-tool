@@ -49,7 +49,7 @@ export function SelectorGrid({
       ref={gridRef}
       onKeyDown={onKeyDown}
       style={{ height }}
-      className='overflow-y-auto'
+      className='overflow-y-auto scrollbar-mac'
     >
       <div className='py-1' />
       {/* One observer for the whole grid, rooted at the scroll container above. */}
