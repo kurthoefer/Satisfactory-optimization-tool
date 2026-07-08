@@ -205,16 +205,20 @@ function computeGraphMetrics(
  * Build GraphNode[] and GraphEdge[] from walked node IDs and filtered edges.
  * Attaches persistence scores, SCC groups, and visual flags.
  */
+
 function assembleGraph(
   reachableIds: Set<string>,
   filteredEdges: TopologicalEdge[],
   filteredNodeScores: Record<string, number>,
   subgraphNodeScores: Record<string, number>,
   sccGroups: Map<string, number>,
-  sccLevelByNode: Map<string, number>, // NEW
+  sccLevelByNode: Map<string, number>,
 ): { nodes: GraphNode[]; links: GraphEdge[] } {
   // --- Nodes ---
   const nodes: GraphNode[] = [];
+  // Build the id -> node index in the SAME pass that creates the nodes, so the
+  // degree step below is O(1) per lookup rather than a linear scan.
+  const nodeById = new Map<string, GraphNode>();
 
   for (const id of reachableIds) {
     const product = productsByClassName.get(id);
@@ -234,14 +238,17 @@ function assembleGraph(
         `assembleGraph: reachable id "${id}" is neither product nor recipe`,
       );
 
-    nodes.push({
+    const node: GraphNode = {
       id,
       payload,
       persistence,
       degree: 0,
       sccGroupId: sccGroups.get(id) ?? null,
       sccLevel: sccLevelByNode.get(id) ?? 0,
-    });
+    };
+
+    nodes.push(node);
+    nodeById.set(id, node); // index as we build — no second pass
   }
 
   // --- Links ---
@@ -273,15 +280,15 @@ function assembleGraph(
     });
   }
 
-  // --- Compute degree ---
+  // --- Compute degree ---  O(edges), O(1) lookups (was O(nodes × edges))
   for (const link of links) {
     const sourceId =
       typeof link.source === 'string' ? link.source : link.source.id;
     const targetId =
       typeof link.target === 'string' ? link.target : link.target.id;
 
-    const sourceNode = nodes.find((n) => n.id === sourceId);
-    const targetNode = nodes.find((n) => n.id === targetId);
+    const sourceNode = nodeById.get(sourceId);
+    const targetNode = nodeById.get(targetId);
 
     if (sourceNode) sourceNode.degree++;
     if (targetNode) targetNode.degree++;

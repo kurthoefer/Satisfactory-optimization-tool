@@ -6,6 +6,13 @@
  * leash. Link tuning is SCC-aware (tight intra, slack cross), and a gentle
  * centroid gravity coheres each SCC into a readable blob.
  *
+ * CHANGE: forceSCCCentroid is now collapse-aware. A collapsed group gets a
+ * strong, constant (non-alpha-scaled) pull toward its centroid, so its members
+ * crush together and STAY crushed after the sim cools — while charge repulsion
+ * keeps them from fully coinciding. The result reads as "several squished
+ * together," which the goo fuses into one dense blob. The members are never
+ * removed, so the absorption IS the collapse. No starburst.
+ *
  * Returns a cleanup function to stop the simulation.
  */
 
@@ -26,6 +33,12 @@ export interface ForceLayoutOptions {
   nodeSelection: NodeSelection;
   linkSelection: LinkSelection;
   onNodeClick?: (nodeId: string) => void;
+  /**
+   * True when the SCC group with this numeric id is collapsed. Wire to
+   * fieldStore: `(gid) => fieldStore.isCollapsed(`scc:${gid}`)`. Defaults to
+   * never-collapsed, so existing callers are unaffected.
+   */
+  isCollapsed?: (sccGroupId: number) => boolean;
 }
 
 export interface ForceLayoutResult {
@@ -58,6 +71,13 @@ const VELOCITY_DECAY = 0.45;
 // it and this acts mostly horizontally.
 const SCC_CENTROID_STRENGTH = 0.06;
 
+// Collapse pull. Constant (NOT alpha-scaled) so it persists after the sim
+// cools and keeps the group crushed. Strong enough to overwhelm the -150
+// charge into a tight cluster; charge still prevents full coincidence, so the
+// members squish rather than stack. Tighter dot? raise toward ~0.5. Looser,
+// more "several visible bodies"? lower toward ~0.2.
+const COLLAPSE_STRENGTH = 0.35;
+
 // ============================================================================
 // HELPERS
 // ============================================================================
@@ -70,16 +90,20 @@ function isIntraSCC(edge: GraphEdge): boolean {
 }
 
 /**
- * Intra-cluster centroid gravity. Groups members once at initialize, then each
- * tick pulls every member toward its group's live centroid. Alpha-scaled, so
- * it fades as the sim settles like every other force.
+ * Intra-cluster centroid gravity, now collapse-aware. Groups members once at
+ * initialize (retaining groupId), then each tick pulls every member toward its
+ * group's live centroid. Expanded groups use the gentle alpha-scaled pull (it
+ * fades as the sim settles, like every other force). Collapsed groups use the
+ * strong constant pull that crushes and holds.
  */
-function forceSCCCentroid(strength: number): d3.Force<GraphNode, GraphEdge> {
-  let groups: GraphNode[][] = [];
+function forceSCCCentroid(
+  strength: number,
+  isCollapsed: (sccGroupId: number) => boolean,
+): d3.Force<GraphNode, GraphEdge> {
+  let groups: { groupId: number; members: GraphNode[] }[] = [];
 
   function force(alpha: number) {
-    const k = strength * alpha;
-    for (const members of groups) {
+    for (const { groupId, members } of groups) {
       let cx = 0;
       let cy = 0;
       for (const n of members) {
@@ -88,6 +112,11 @@ function forceSCCCentroid(strength: number): d3.Force<GraphNode, GraphEdge> {
       }
       cx /= members.length;
       cy /= members.length;
+
+      // collapsed -> strong & constant (holds after cooldown);
+      // expanded  -> gentle & alpha-scaled (fades on settle).
+      const k = isCollapsed(groupId) ? COLLAPSE_STRENGTH : strength * alpha;
+
       for (const n of members) {
         n.vx = (n.vx ?? 0) + (cx - (n.x ?? 0)) * k;
         n.vy = (n.vy ?? 0) + (cy - (n.y ?? 0)) * k;
@@ -103,7 +132,10 @@ function forceSCCCentroid(strength: number): d3.Force<GraphNode, GraphEdge> {
       if (arr) arr.push(n);
       else byGroup.set(n.sccGroupId, [n]);
     }
-    groups = [...byGroup.values()];
+    groups = [...byGroup.entries()].map(([groupId, members]) => ({
+      groupId,
+      members,
+    }));
   };
 
   return force;
@@ -157,6 +189,7 @@ export function createForceLayout(
     nodeSelection,
     linkSelection,
     onNodeClick,
+    isCollapsed = () => false,
   } = options;
 
   const levelToY = buildLevelToY(nodes, height);
@@ -193,7 +226,7 @@ export function createForceLayout(
         .forceY<GraphNode>((d) => levelToY(d.sccLevel))
         .strength(FORCE_Y_STRENGTH),
     )
-    .force('sccCentroid', forceSCCCentroid(SCC_CENTROID_STRENGTH));
+    .force('sccCentroid', forceSCCCentroid(SCC_CENTROID_STRENGTH, isCollapsed));
 
   // --- Tick: write positions to the SVG ---
   simulation.on('tick', () => {
